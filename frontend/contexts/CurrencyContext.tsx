@@ -1,0 +1,83 @@
+'use client'
+
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import usePreferencesStore from '@/store/usePreferencesStore'
+import { formatByPreference, formatDual, type DisplayCurrency } from '@/lib/currency'
+
+interface CurrencyContextValue {
+  displayCurrency: DisplayCurrency
+  setDisplayCurrency: (currency: DisplayCurrency) => Promise<void>
+  formatAmount: (amountNgn: number | string, amountUsdc: number | string) => string
+  formatDual: (amountNgn: number | string, amountUsdc: number | string) => string
+}
+
+const CurrencyContext = createContext<CurrencyContextValue | null>(null)
+
+async function persistDisplayCurrency(currency: DisplayCurrency): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+  if (!token) return
+
+  await fetch('/api/user/preferences', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ displayCurrency: currency }),
+  })
+}
+
+export function CurrencyProvider({ children }: { children: React.ReactNode }) {
+  const currency = usePreferencesStore((s) => s.currency) as DisplayCurrency
+  const setPreference = usePreferencesStore((s) => s.setPreference)
+  const [, setTick] = useState(0)
+
+  const setDisplayCurrency = useCallback(
+    async (next: DisplayCurrency) => {
+      setPreference('currency', next)
+      setTick((t) => t + 1)
+      try {
+        await persistDisplayCurrency(next)
+      } catch {
+        // Local preference still applies when offline
+      }
+    },
+    [setPreference],
+  )
+
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+    if (!token) return
+
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const dc = data?.user?.displayCurrency as DisplayCurrency | undefined
+        if (dc === 'NGN' || dc === 'USDC') {
+          setPreference('currency', dc)
+          setTick((t) => t + 1)
+        }
+      })
+      .catch(() => undefined)
+  }, [setPreference])
+
+  const value = useMemo<CurrencyContextValue>(
+    () => ({
+      displayCurrency: currency === 'USDC' ? 'USDC' : 'NGN',
+      setDisplayCurrency,
+      formatAmount: (ngn, usdc) => formatByPreference(ngn, usdc, currency === 'USDC' ? 'USDC' : 'NGN'),
+      formatDual,
+    }),
+    [currency, setDisplayCurrency],
+  )
+
+  return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>
+}
+
+export function useCurrency(): CurrencyContextValue {
+  const ctx = useContext(CurrencyContext)
+  if (!ctx) {
+    throw new Error('useCurrency must be used within CurrencyProvider')
+  }
+  return ctx
+}

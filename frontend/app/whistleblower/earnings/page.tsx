@@ -12,9 +12,12 @@ import {
 import { Card } from "@/components/ui/card";
 import useAuthStore from "@/store/useAuthStore";
 import { getWhistleblowerEarnings, type EarningsResponse } from "@/lib/api/whistleblowerApplications";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { formatDual } from "@/lib/currency";
 
 export default function WhistleblowerEarningsPage() {
   const { user } = useAuthStore();
+  const { formatAmount } = useCurrency();
   const [earningsData, setEarningsData] = useState<EarningsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +122,16 @@ export default function WhistleblowerEarningsPage() {
                         Total Earnings
                       </p>
                       <p className="text-2xl font-black md:text-3xl">
-                        ₦{totalEarnings.toLocaleString()}
+                        {formatAmount(
+                          totalEarnings,
+                          earningsData.totals.totalUsdc ?? 0,
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDual(
+                          totalEarnings,
+                          earningsData.totals.totalUsdc ?? 0,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -135,7 +147,10 @@ export default function WhistleblowerEarningsPage() {
                         Completed
                       </p>
                       <p className="text-2xl font-black md:text-3xl">
-                        ₦{completedEarnings.toLocaleString()}
+                        {formatAmount(
+                          completedEarnings,
+                          earningsData.totals.paidUsdc ?? 0,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -151,7 +166,10 @@ export default function WhistleblowerEarningsPage() {
                         Pending
                       </p>
                       <p className="text-2xl font-black md:text-3xl">
-                        ₦{pendingEarnings.toLocaleString()}
+                        {formatAmount(
+                          pendingEarnings,
+                          earningsData.totals.pendingUsdc ?? 0,
+                        )}
                       </p>
                     </div>
                   </div>
@@ -194,7 +212,10 @@ export default function WhistleblowerEarningsPage() {
                             <div className="flex items-center justify-between gap-4 pt-3 border-t-2 border-foreground md:border-t-0 md:border-l-2 md:pl-4">
                               <div>
                                 <p className="text-lg font-black text-primary md:text-2xl">
-                                  ₦{Math.round(earning.amountNgn).toLocaleString()}
+                                  {formatAmount(earning.amountNgn, earning.amountUsdc)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDual(earning.amountNgn, earning.amountUsdc)}
                                 </p>
                                 {status === "pending" ? (
                                   <p className="text-xs text-muted-foreground">

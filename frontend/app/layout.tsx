@@ -9,6 +9,7 @@ import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import { WebVitalsReporter } from '@/components/web-vitals-reporter'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { ThemeProvider } from '@/components/theme-provider'
+import { CurrencyProvider } from '@/contexts/CurrencyContext'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
@@ -46,16 +47,18 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ErrorBoundary>
-            <ServiceWorkerRegister />
-            <WebVitalsReporter />
-            <PerformanceMonitor />
-            <NetworkStatusBanner />
-            <Header />
-            {children}
-            <Footer />
-            <Toaster />
-          </ErrorBoundary>
+          <CurrencyProvider>
+            <ErrorBoundary>
+              <ServiceWorkerRegister />
+              <WebVitalsReporter />
+              <PerformanceMonitor />
+              <NetworkStatusBanner />
+              <Header />
+              {children}
+              <Footer />
+              <Toaster />
+            </ErrorBoundary>
+          </CurrencyProvider>
         </ThemeProvider>
       </body>
     </html>
