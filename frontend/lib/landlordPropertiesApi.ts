@@ -1,0 +1,180 @@
+import { apiFetch } from "./api";
+import { apiGet, apiPatch, apiPost } from "./apiClient";
+import type { PropertyAmenity, PropertyType } from "./amenities";
+
+export type LandlordPropertyStatus =
+  | "pending_review"
+  | "approved"
+  | "rented"
+  | "deactivated"
+  | "pending"
+  | "active"
+  | "inactive";
+
+export interface LandlordPropertyRecord {
+  id: string;
+  landlordId: string;
+  title: string;
+  address: string;
+  city?: string;
+  area?: string;
+  propertyType?: PropertyType;
+  bedrooms: number;
+  bathrooms: number;
+  sqm?: number;
+  annualRentNgn: number;
+  negotiatedLandlordRateNgn?: number;
+  outrightPriceNgn?: number;
+  installmentBasePriceNgn?: number;
+  description?: string;
+  amenities: PropertyAmenity[];
+  photos: string[];
+  primaryPhotoIndex: number;
+  videoUrl?: string;
+  listingId?: string;
+  status: LandlordPropertyStatus;
+  views: number;
+  inquiries: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LandlordPropertiesListResponse {
+  properties: LandlordPropertyRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface PropertyListingPayload {
+  title: string;
+  address: string;
+  city?: string;
+  area?: string;
+  propertyType?: PropertyType;
+  bedrooms: number;
+  bathrooms: number;
+  sqm?: number;
+  negotiatedLandlordRateNgn: number;
+  outrightPriceNgn: number;
+  installmentBasePriceNgn: number;
+  description?: string;
+  amenities: PropertyAmenity[];
+  photos: string[];
+  primaryPhotoIndex?: number;
+  photoOrder?: string[];
+  videoUrl?: string;
+}
+
+export interface PhotoPresignResponse {
+  strategy: string;
+  uploadUrl: string;
+  method: string;
+  fieldName: string;
+  maxFiles: number;
+  expiresAt: string;
+}
+
+export interface UploadedPhoto {
+  id: string;
+  url: string;
+  preview: string;
+  file?: File;
+}
+
+export async function listLandlordProperties(params?: {
+  status?: string;
+  query?: string;
+  page?: number;
+}): Promise<LandlordPropertiesListResponse> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.query) qs.set("query", params.query);
+  if (params?.page) qs.set("page", String(params.page));
+  const query = qs.toString();
+  return apiGet<LandlordPropertiesListResponse>(
+    `/api/landlord/properties${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getLandlordProperty(
+  id: string,
+): Promise<LandlordPropertyRecord> {
+  return apiGet<LandlordPropertyRecord>(`/api/landlord/properties/${id}`);
+}
+
+export async function createLandlordProperty(
+  payload: PropertyListingPayload,
+): Promise<LandlordPropertyRecord> {
+  return apiPost<LandlordPropertyRecord>("/api/landlord/properties", payload);
+}
+
+export async function updateLandlordProperty(
+  id: string,
+  payload: Partial<PropertyListingPayload>,
+): Promise<LandlordPropertyRecord> {
+  return apiPatch<LandlordPropertyRecord>(
+    `/api/landlord/properties/${id}`,
+    payload,
+  );
+}
+
+export async function deactivateLandlordProperty(
+  id: string,
+): Promise<LandlordPropertyRecord> {
+  return apiPatch<LandlordPropertyRecord>(
+    `/api/landlord/properties/${id}/deactivate`,
+    {},
+  );
+}
+
+export async function relistLandlordProperty(
+  id: string,
+): Promise<LandlordPropertyRecord> {
+  return apiPatch<LandlordPropertyRecord>(
+    `/api/landlord/properties/${id}/relist`,
+    {},
+  );
+}
+
+export async function getPhotoPresign(
+  propertyId: string,
+): Promise<PhotoPresignResponse> {
+  return apiPost<PhotoPresignResponse>(
+    `/api/properties/${propertyId}/photos/presign`,
+    {},
+  );
+}
+
+export async function uploadPropertyPhotosBatch(
+  propertyId: string,
+  files: File[],
+): Promise<{ results: Array<{ success: boolean; photo: { url: string; id: string } }> }> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("photos", file));
+
+  return apiFetch(`/api/properties/${propertyId}/photos/batch`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export const MIN_OUTRIGHT_MARGIN_PERCENT = 0.05;
+
+export function computeMarginPreview(
+  negotiated: number,
+  outright: number,
+  installmentBase: number,
+) {
+  const outrightMargin =
+    negotiated > 0 ? (outright - negotiated) / negotiated : 0;
+  const installmentMargin =
+    negotiated > 0 ? (installmentBase - negotiated) / negotiated : 0;
+  return {
+    outrightMarginPercent: outrightMargin * 100,
+    installmentMarginPercent: installmentMargin * 100,
+    belowRecommended: outrightMargin < MIN_OUTRIGHT_MARGIN_PERCENT,
+    orderInvalid: outright > installmentBase,
+  };
+}
