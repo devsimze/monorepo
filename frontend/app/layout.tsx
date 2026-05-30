@@ -7,7 +7,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NetworkStatusBanner } from '@/components/network-status-banner'
 import SkipLink from '@/components/SkipLink'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
-import { WebVitalsReporter } from '@/components/web-vitals-reporter'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { ThemeProvider } from '@/components/theme-provider'
 import { CurrencyProvider } from '@/contexts/CurrencyContext'
@@ -51,7 +51,7 @@ export default function RootLayout({
           <CurrencyProvider>
             <ErrorBoundary>
               <ServiceWorkerRegister />
-              <WebVitalsReporter />
+              <SpeedInsights />
               <PerformanceMonitor />
               <NetworkStatusBanner />
               <SkipLink />

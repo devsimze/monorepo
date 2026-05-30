@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Menu,
   X,
+  Gauge,
 } from "lucide-react";
 import { PropertyCard } from "@/components/property-card";
 import { Button } from "@/components/ui/button";
@@ -193,6 +194,14 @@ export default function TenantDashboard() {
             >
               <CreditCard className="h-5 w-5" />
               Payments
+            </Link>
+            <Link
+              href="/dashboard/tenant/credit-score"
+              className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Gauge className="h-5 w-5" />
+              Credit Score
             </Link>
             <Link
               href="/dashboard/tenant/lease"
