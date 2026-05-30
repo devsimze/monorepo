@@ -24,6 +24,7 @@ export function useNotifications() {
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
   const mountedRef = useRef(true)
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const connectRef = useRef<() => void>(() => {})
 
   const getWsUrl = useCallback(() => {
     const token = getToken()
@@ -33,6 +34,28 @@ export function useNotifications() {
       ? process.env.NEXT_PUBLIC_API_URL.replace(/^https?/, "ws").replace(/\/api$/, "")
       : `${protocol}//${window.location.host}`
     return `${host}/ws/notifications?token=${token}`
+  }, [])
+
+  const clearPollTimer = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+  }, [])
+
+  const startPolling = useCallback(() => {
+    const poll = async () => {
+      try {
+        const r = await fetchUnreadCount()
+        if (mountedRef.current) {
+          setUnreadCount(r.data.unread)
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }
+    void poll()
+    pollTimerRef.current = setInterval(poll, 30000)
   }, [])
 
   const connect = useCallback(() => {
@@ -83,7 +106,9 @@ export function useNotifications() {
         if (reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
           const delay = BASE_DELAY * Math.pow(2, reconnectAttemptRef.current)
           reconnectAttemptRef.current++
-          reconnectTimerRef.current = setTimeout(connect, delay)
+          reconnectTimerRef.current = setTimeout(() => {
+            connectRef.current()
+          }, delay)
         } else {
           startPolling()
         }
@@ -95,29 +120,11 @@ export function useNotifications() {
     } catch {
       startPolling()
     }
-  }, [getWsUrl])
+  }, [getWsUrl, clearPollTimer, startPolling])
 
-  const startPolling = useCallback(() => {
-    const poll = async () => {
-      try {
-        const r = await fetchUnreadCount()
-        if (mountedRef.current) {
-          setUnreadCount(r.data.unread)
-        }
-      } catch {
-        // ignore polling errors
-      }
-    }
-    void poll()
-    pollTimerRef.current = setInterval(poll, 30000)
-  }, [])
-
-  const clearPollTimer = () => {
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current)
-      pollTimerRef.current = null
-    }
-  }
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
 
   useEffect(() => {
     mountedRef.current = true
@@ -132,7 +139,7 @@ export function useNotifications() {
         wsRef.current = null
       }
     }
-  }, [connect])
+  }, [connect, clearPollTimer])
 
   return {
     notifications,
