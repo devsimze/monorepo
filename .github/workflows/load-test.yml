@@ -1,0 +1,75 @@
+name: Load Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production-readonly
+      scenario:
+        description: 'Scenario to execute'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - property-search
+          - payment-flow
+          - underwriting
+          - auth-otp
+          - staking-read
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    name: Execute k6 Load Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 Scenarios
+        env:
+          BASE_URL: ${{ inputs.environment == 'staging' && secrets.STAGING_BASE_URL || secrets.PRODUCTION_BASE_URL }}
+          AUTH_TOKEN: ${{ inputs.environment == 'staging' && secrets.STAGING_AUTH_TOKEN || secrets.PRODUCTION_AUTH_TOKEN }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          mkdir -p load-tests/results
+          
+          run_scenario() {
+            local script=$1
+            local name=$2
+            echo "=========================================="
+            echo "🚀 Running Scenario: $name"
+            echo "=========================================="
+            k6 run --out json=load-tests/results/${name}-results.json load-tests/scenarios/${script}
+          }
+
+          if [ "${{ inputs.scenario }}" = "all" ]; then
+            run_scenario "property-search.js" "property-search"
+            run_scenario "payment-flow.js" "payment-flow"
+            run_scenario "underwriting.js" "underwriting"
+            run_scenario "auth-otp.js" "auth-otp"
+            run_scenario "staking-read.js" "staking-read"
+          else
+            run_scenario "${{ inputs.scenario }}.js" "${{ inputs.scenario }}"
+          fi
+
+      - name: Upload performance report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-load-test-results
+          path: load-tests/results/
+          if-no-files-found: ignore

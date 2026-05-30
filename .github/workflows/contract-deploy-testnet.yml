@@ -1,0 +1,51 @@
+name: Deploy Contracts to Testnet
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-soroban-testnet:
+    name: Deploy Soroban → Testnet
+    runs-on: ubuntu-latest
+
+    env:
+      STELLAR_SECRET_KEY: ${{ secrets.STELLAR_SECRET_KEY }}
+      STELLAR_DEPLOYER_ADDRESS: ${{ secrets.STELLAR_DEPLOYER_ADDRESS }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            contracts -> target
+
+      - name: Install Stellar CLI
+        run: cargo install --locked stellar-cli --features opt
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Deploy contracts to testnet
+        working-directory: contracts/deployment/scripts
+        run: |
+          chmod +x deploy-soroban.sh
+          bash deploy-soroban.sh --network testnet
+
+      - name: Upload deployment state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployed-contracts-testnet
+          path: contracts/deployment/deployed/testnet.json
+          if-no-files-found: ignore
