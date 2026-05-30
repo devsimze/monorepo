@@ -280,31 +280,43 @@ export function PropertyCard({
   const locationLabel = formatLocation(property);
   const detailHref = href ?? `/properties/${property.listingId}`;
 
-  const priceBlock =
-    paymentType === "outright" ? (
-      <>
-        <p className="text-xs text-muted-foreground">Price</p>
-        <p className="font-mono text-xl font-black">
-          {formatNgn(property.outrightPriceNgn ?? property.annualRentNgn)}
-        </p>
-      </>
-    ) : (
-      <>
-        <p className="text-xs text-muted-foreground">Est. monthly</p>
-        <p className="font-mono text-xl font-black">
-          {formatNgn(
-            Math.round(
-              (property.installmentBasePriceNgn ?? property.annualRentNgn) /
-                planMonths,
-            ),
-          )}
-          <span className="text-sm font-medium text-muted-foreground">/mo</span>
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {formatNgn(property.annualRentNgn)} annual · {planMonths}-mo plan
-        </p>
-      </>
-    );
+  const showBothPrices =
+    property.outrightPriceNgn && property.installmentBasePriceNgn;
+
+  const priceBlock = showBothPrices ? (
+    <>
+      <p className="text-xs text-muted-foreground">
+        {formatNgn(property.installmentBasePriceNgn)}/yr (installment)
+      </p>
+      <p className="font-mono text-xl font-black">
+        {formatNgn(property.outrightPriceNgn)}{" "}
+        <span className="text-xs font-medium text-muted-foreground">outright</span>
+      </p>
+    </>
+  ) : paymentType === "outright" ? (
+    <>
+      <p className="text-xs text-muted-foreground">Price</p>
+      <p className="font-mono text-xl font-black">
+        {formatNgn(property.outrightPriceNgn ?? property.annualRentNgn)}
+      </p>
+    </>
+  ) : (
+    <>
+      <p className="text-xs text-muted-foreground">Est. monthly</p>
+      <p className="font-mono text-xl font-black">
+        {formatNgn(
+          Math.round(
+            (property.installmentBasePriceNgn ?? property.annualRentNgn) /
+              planMonths,
+          ),
+        )}
+        <span className="text-sm font-medium text-muted-foreground">/mo</span>
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {formatNgn(property.annualRentNgn)} annual · {planMonths}-mo plan
+      </p>
+    </>
+  );
 
   const handleFavoriteClick = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();

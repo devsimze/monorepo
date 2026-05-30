@@ -2,20 +2,35 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { ArrowRight, Info, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function CalculatorPage() {
-  const [annualRent, setAnnualRent] = useState(2400000)
-  const [deposit, setDeposit] = useState(480000) // Default to 20% minimum
-  const [duration, setDuration] = useState(12)
-  const scheduleBaseTime = Date.UTC(2025, 0, 1)
+  const searchParams = useSearchParams();
+  const initialAmount = searchParams.get("amount");
+  const parsedInitial = initialAmount ? Number.parseInt(initialAmount, 10) : 2400000;
 
-  const minDeposit = annualRent * 0.2 // Minimum 20% deposit required
-  const maxDeposit = annualRent // Maximum 100% for those paying in full
-  const totalAmount = annualRent - deposit // Amount Shelterflex finances (rent only)
-  const monthlyPayment = totalAmount / duration
+  const [priceMode, setPriceMode] = useState<"installment" | "outright">("installment");
+  const [installmentPrice, setInstallmentPrice] = useState(parsedInitial);
+  const [outrightPrice, setOutrightPrice] = useState(Math.round(parsedInitial / 1.1));
+  const [deposit, setDeposit] = useState(Math.round(parsedInitial * 0.2));
+  const [duration, setDuration] = useState(12);
+  const scheduleBaseTime = Date.UTC(2025, 0, 1);
+
+  const effectivePrice = priceMode === "outright" ? outrightPrice : installmentPrice;
+  const minDeposit = effectivePrice * 0.2;
+  const maxDeposit = effectivePrice;
+  const totalAmount = effectivePrice - deposit;
+  const monthlyPayment = totalAmount / duration;
+  const savings = installmentPrice - outrightPrice;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -57,17 +72,47 @@ export default function CalculatorPage() {
               <div className="border-3 border-foreground bg-card p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] md:p-6">
                 <h2 className="mb-4 font-mono text-lg font-bold md:mb-6 md:text-xl">Configure Your Plan</h2>
 
-                {/* Annual Rent */}
+                {/* Price Mode Toggle */}
+                <div className="mb-6 flex gap-2">
+                  <button
+                    onClick={() => setPriceMode("installment")}
+                    className={`flex-1 border-3 border-foreground p-3 font-bold text-center transition-all ${
+                      priceMode === "installment"
+                        ? "bg-primary text-primary-foreground shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
+                        : "bg-background hover:bg-muted"
+                    }`}
+                  >
+                    <p className="text-xs text-muted-foreground">Installment</p>
+                    <p className="font-mono text-lg">{formatCurrency(installmentPrice)}</p>
+                  </button>
+                  <button
+                    onClick={() => setPriceMode("outright")}
+                    className={`flex-1 border-3 border-foreground p-3 font-bold text-center transition-all ${
+                      priceMode === "outright"
+                        ? "bg-primary text-primary-foreground shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
+                        : "bg-background hover:bg-muted"
+                    }`}
+                  >
+                    <p className="text-xs text-muted-foreground">Outright (save ₦{formatCurrency(savings).replace("₦", "")})</p>
+                    <p className="font-mono text-lg">{formatCurrency(outrightPrice)}</p>
+                  </button>
+                </div>
+
+                {/* Installment Price Slider */}
                 <div className="mb-6 md:mb-8">
                   <div className="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="font-mono text-xs font-bold sm:text-sm">Annual Rent</p>
+                    <p className="font-mono text-xs font-bold sm:text-sm">Installment Base Price</p>
                     <span className="border-2 border-foreground bg-muted px-2 py-1 font-mono text-base font-black sm:px-3 sm:text-lg">
-                      {formatCurrency(annualRent)}
+                      {formatCurrency(installmentPrice)}
                     </span>
                   </div>
                   <Slider
-                    value={[annualRent]}
-                    onValueChange={(value) => setAnnualRent(value[0])}
+                    value={[installmentPrice]}
+                    onValueChange={(value) => {
+                      setInstallmentPrice(value[0]);
+                      setOutrightPrice(Math.round(value[0] / 1.1));
+                      setDeposit(Math.max(Math.round(value[0] * 0.2), deposit));
+                    }}
                     min={500000}
                     max={20000000}
                     step={100000}
@@ -128,6 +173,28 @@ export default function CalculatorPage() {
                   <Info className="h-6 w-6 shrink-0" />
                   <div>
                     <h3 className="mb-2 font-mono font-bold">How it works</h3>
+                    <div className="mb-4 flex items-start gap-2 border-b border-foreground/20 pb-4">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 text-xs font-bold text-muted-foreground underline decoration-dotted"
+                            >
+                              Why two prices? <Info className="h-3 w-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="border-2 border-foreground bg-background p-3 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] max-w-xs">
+                            <p className="text-xs font-medium">
+                              The installment price includes the cost of financing
+                              your rent over time. Paying outright costs less
+                              because there are no financing charges. Choose what
+                              works best for your budget.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <Check className="h-4 w-4 mt-0.5 shrink-0" />
@@ -161,9 +228,15 @@ export default function CalculatorPage() {
 
 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b-2 border-dashed border-foreground/30 pb-4">
-                    <span className="text-muted-foreground">Annual Rent</span>
-                    <span className="font-mono font-bold">{formatCurrency(annualRent)}</span>
+                    <span className="text-muted-foreground">{priceMode === "outright" ? "Outright Price" : "Installment Price"}</span>
+                    <span className="font-mono font-bold">{formatCurrency(effectivePrice)}</span>
                   </div>
+                  {priceMode === "outright" && savings > 0 && (
+                    <div className="flex items-center justify-between border-b-2 border-dashed border-foreground/30 pb-4 pt-2">
+                      <span className="text-muted-foreground">You save</span>
+                      <span className="font-mono font-bold text-secondary">{formatCurrency(savings)}</span>
+                    </div>
+                  )}
                   {deposit > 0 && (
                     <div className="flex items-center justify-between border-b-2 border-dashed border-foreground/30 pb-4">
                       <span className="text-muted-foreground">Your Deposit (paid upfront)</span>
@@ -185,7 +258,7 @@ export default function CalculatorPage() {
                 </div>
 
                 <div className="mt-6">
-                  <Link href={`/dashboard/tenant/application?amount=${annualRent}&deposit=${deposit}&duration=${duration}`}>
+                  <Link href={`/dashboard/tenant/application?amount=${effectivePrice}&deposit=${deposit}&duration=${duration}&priceMode=${priceMode}`}>
                     <Button className="w-full border-3 border-foreground bg-primary px-8 py-6 text-lg font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
                       Apply Now
                       <ArrowRight className="ml-2 h-5 w-5" />

@@ -263,6 +263,7 @@ export default function TenantRatingCardPage() {
                       type="text"
                       value={shareLink}
                       readOnly
+                      aria-label="Shareable rating card link"
                       className="flex-1 bg-transparent text-sm font-mono outline-none"
                     />
                     <Button

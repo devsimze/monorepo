@@ -288,10 +288,11 @@ export default function DocumentVaultPage() {
           <Card className="mb-6 border-3 border-foreground p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end">
               <div className="flex-1">
-                <label className="mb-1 block text-sm font-bold">Search</label>
+                <label htmlFor="vault-search" className="mb-1 block text-sm font-bold">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
+                    id="vault-search"
                     type="text"
                     placeholder="Search by name, description, or tag..."
                     value={search}

@@ -57,6 +57,7 @@ import { apiPost } from "@/lib/api";
 import { VerificationBadge, VerificationStatus } from "@/components/properties/verification-badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApartmentReviews } from "@/components/properties/ApartmentReviews";
+import PropertyPriceBreakdown from "@/components/properties/PropertyPriceBreakdown";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -198,8 +199,10 @@ export default function PropertyDetailClient({
     }).format(price);
   };
 
-  const minDeposit = property.price * 0.2; // 20% minimum deposit
-  const amountToFinance = property.price - minDeposit;
+  const installmentPrice = (property as any).installmentBasePriceNgn ?? property.price;
+  const outrightPrice = (property as any).outrightPriceNgn ?? property.price;
+  const minDeposit = installmentPrice * 0.2;
+  const amountToFinance = installmentPrice - minDeposit;
   const inspectionFee = amountToFinance * 0.075;
   const monthlyPayment = Math.round(
     (amountToFinance + inspectionFee) / paymentMonths,
@@ -579,14 +582,36 @@ export default function PropertyDetailClient({
               <div className="sticky top-24 space-y-6">
                 {/* Pricing Card */}
                 <div className="border-3 border-foreground bg-card p-4 shadow-[6px_6px_0px_0px_rgba(26,26,26,1)] sm:p-6">
-                  <div className="mb-4">
-                    <p className="text-xs text-muted-foreground sm:text-sm">
-                      Annual Rent
-                    </p>
-                    <p className="font-mono text-2xl font-black sm:text-3xl">
-                      {formatPrice(property.price)}
-                    </p>
-                  </div>
+                  {(property as any).outrightPriceNgn && (property as any).installmentBasePriceNgn ? (
+                    <div className="mb-4 space-y-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground sm:text-sm">
+                          Installment Price
+                        </p>
+                        <p className="font-mono text-xl font-black sm:text-2xl">
+                          {formatPrice((property as any).installmentBasePriceNgn)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          or{" "}
+                          <span className="font-mono font-bold text-secondary">
+                            {formatPrice((property as any).outrightPriceNgn)}
+                          </span>{" "}
+                          outright
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground sm:text-sm">
+                        Annual Rent
+                      </p>
+                      <p className="font-mono text-2xl font-black sm:text-3xl">
+                        {formatPrice(property.price)}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="border-t-3 border-dashed border-foreground/30 pt-4 mb-4">
                     <div className="flex items-center gap-2 mb-3">
@@ -633,8 +658,15 @@ export default function PropertyDetailClient({
                     </div>
                   </div>
 
+                  <PropertyPriceBreakdown
+                    outrightPriceNgn={(property as any).outrightPriceNgn}
+                    installmentBasePriceNgn={(property as any).installmentBasePriceNgn}
+                    annualRentNgn={property.price}
+                    paymentMonths={paymentMonths}
+                  />
+
                   {(property as any).verificationStatus === 'VERIFIED' ? (
-                    <Link href={`/calculator?amount=${property.price}`}>
+                    <Link href={`/calculator?amount=${installmentPrice}`}>
                       <Button className="w-full border-3 border-foreground bg-primary py-6 font-mono text-lg font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
                         Apply Now
                       </Button>
@@ -815,16 +847,18 @@ export default function PropertyDetailClient({
         >
           <button
             onClick={() => setShowLightbox(false)}
+            aria-label="Close image gallery"
             className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center border-3 border-background bg-background text-foreground"
           >
-            <X className="h-6 w-6" />
+            <X className="h-6 w-6" aria-hidden />
           </button>
 
           <button
             onClick={prevImage}
+            aria-label="Previous image"
             className="absolute left-4 flex h-14 w-14 items-center justify-center border-3 border-background bg-background text-foreground"
           >
-            <ChevronLeft className="h-8 w-8" />
+            <ChevronLeft className="h-8 w-8" aria-hidden />
           </button>
 
           <div className="max-w-4xl w-full">
@@ -887,9 +921,10 @@ export default function PropertyDetailClient({
 
           <button
             onClick={nextImage}
+            aria-label="Next image"
             className="absolute right-4 flex h-14 w-14 items-center justify-center border-3 border-background bg-background text-foreground"
           >
-            <ChevronRight className="h-8 w-8" />
+            <ChevronRight className="h-8 w-8" aria-hidden />
           </button>
         </div>
       )}

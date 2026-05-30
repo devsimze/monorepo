@@ -5,6 +5,7 @@ import { Footer } from '@/components/footer'
 import { Toaster } from '@/components/ui/toaster'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NetworkStatusBanner } from '@/components/network-status-banner'
+import SkipLink from '@/components/SkipLink'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import { WebVitalsReporter } from '@/components/web-vitals-reporter'
 import { PerformanceMonitor } from '@/components/PerformanceMonitor'
@@ -53,7 +54,9 @@ export default function RootLayout({
               <WebVitalsReporter />
               <PerformanceMonitor />
               <NetworkStatusBanner />
+              <SkipLink />
               <Header />
+              <div id="main-content" />
               {children}
               <Footer />
               <Toaster />
