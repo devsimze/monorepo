@@ -117,7 +117,9 @@ export async function apiFetch<T>(
   const token = getAuthToken()
 
   const headers = new Headers(options?.headers);
-  headers.set("Content-Type", "application/json");
+  if (!(options?.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
@@ -155,6 +157,10 @@ export async function apiFetch<T>(
         code,
         details,
       })
+    }
+
+    if (res.status === 204 || res.status === 205) {
+      return null as unknown as T
     }
 
     return res.json();

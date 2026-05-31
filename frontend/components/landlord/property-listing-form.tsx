@@ -35,7 +35,8 @@ import {
   type LandlordPropertyRecord,
   type PropertyListingPayload,
 } from "@/lib/landlordPropertiesApi";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
+import { PhotoGalleryEditor } from "@/components/landlord/PhotoGalleryEditor"
 
 export interface ListingPhoto {
   id: string;
@@ -202,9 +203,6 @@ export function PropertyListingForm({
     defaultValues(initialProperty),
   );
   const [submitting, setSubmitting] = useState(false);
-  const [dragPhotoId, setDragPhotoId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const photoIdRef = useRef(0);
 
   const margin = useMemo(() => {
     const negotiated = parseFloat(values.negotiatedLandlordRateNgn) || 0;
@@ -218,66 +216,6 @@ export function PropertyListingForm({
     values.installmentBasePriceNgn,
   ]);
 
-  const addFiles = useCallback((files: FileList | File[]) => {
-    const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (list.length === 0) return;
-
-    setValues((prev) => {
-      const remaining = 20 - prev.photos.length;
-      const toAdd = list.slice(0, remaining).map((file) => {
-        photoIdRef.current += 1;
-        return {
-          id: `photo-${photoIdRef.current}`,
-          preview: URL.createObjectURL(file),
-          file,
-        };
-      });
-      const photos = [...prev.photos, ...toAdd];
-      return {
-        ...prev,
-        photos,
-        primaryPhotoId: prev.primaryPhotoId ?? toAdd[0]?.id ?? null,
-      };
-    });
-  }, []);
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files?.length) {
-      addFiles(e.dataTransfer.files);
-    }
-  };
-
-  const removePhoto = (id: string) => {
-    setValues((prev) => {
-      const photo = prev.photos.find((p) => p.id === id);
-      if (photo?.preview.startsWith("blob:")) {
-        URL.revokeObjectURL(photo.preview);
-      }
-      const photos = prev.photos.filter((p) => p.id !== id);
-      return {
-        ...prev,
-        photos,
-        primaryPhotoId:
-          prev.primaryPhotoId === id
-            ? (photos[0]?.id ?? null)
-            : prev.primaryPhotoId,
-      };
-    });
-  };
-
-  const reorderPhoto = (fromId: string, toId: string) => {
-    if (fromId === toId) return;
-    setValues((prev) => {
-      const photos = [...prev.photos];
-      const fromIdx = photos.findIndex((p) => p.id === fromId);
-      const toIdx = photos.findIndex((p) => p.id === toId);
-      if (fromIdx < 0 || toIdx < 0) return prev;
-      const [moved] = photos.splice(fromIdx, 1);
-      photos.splice(toIdx, 0, moved);
-      return { ...prev, photos };
-    });
-  };
 
   const toggleAmenity = (amenity: PropertyAmenity) => {
     setValues((prev) => ({
@@ -491,82 +429,14 @@ export function PropertyListingForm({
           <p className="mb-4 text-sm text-muted-foreground">
             Upload 3–20 photos. Drag to reorder; star your primary photo.
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) addFiles(e.target.files);
-              e.target.value = "";
-            }}
+          <PhotoGalleryEditor
+            propertyId={initialProperty?.id}
+            photos={values.photos}
+            primaryPhotoId={values.primaryPhotoId}
+            onChange={(photos, primaryPhotoId) =>
+              setValues({ ...values, photos, primaryPhotoId })
+            }
           />
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onDrop}
-            className="mb-6 flex flex-col items-center border-3 border-dashed border-foreground bg-muted/40 p-10"
-          >
-            <Upload className="mb-2 h-10 w-10" />
-            <p className="font-medium">Drag & drop photos here</p>
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-4"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={values.photos.length >= 20}
-            >
-              Browse files
-            </Button>
-          </div>
-          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {values.photos.map((photo) => (
-              <div
-                key={photo.id}
-                draggable
-                onDragStart={() => setDragPhotoId(photo.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (dragPhotoId) reorderPhoto(dragPhotoId, photo.id);
-                  setDragPhotoId(null);
-                }}
-                className="relative aspect-video border-2 border-foreground bg-muted"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.preview}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute left-1 top-1 flex gap-1">
-                  <span className="bg-background/90 p-1">
-                    <GripVertical className="h-4 w-4" />
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Set as primary photo"
-                    onClick={() =>
-                      setValues({ ...values, primaryPhotoId: photo.id })
-                    }
-                    className={cn(
-                      "border border-foreground bg-background/90 p-1",
-                      values.primaryPhotoId === photo.id && "bg-primary",
-                    )}
-                  >
-                    <Star className="h-4 w-4" />
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Remove photo"
-                  onClick={() => removePhoto(photo.id)}
-                  className="absolute right-1 top-1 bg-destructive p-1 text-destructive-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
           <p
             className={cn(
               "text-sm font-medium",

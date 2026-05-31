@@ -83,6 +83,68 @@ export interface UploadedPhoto {
   file?: File;
 }
 
+export interface UploadedPropertyPhoto {
+  id: string;
+  url: string;
+  orderIndex?: number;
+  isFeatured?: boolean;
+}
+
+export interface UploadPropertyPhotosResponse {
+  photos: UploadedPropertyPhoto[];
+}
+
+export async function uploadPropertyPhotos(
+  propertyId: string,
+  files: File[],
+): Promise<UploadPropertyPhotosResponse> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('photos', file));
+
+  return apiFetch<UploadPropertyPhotosResponse>(
+    `/properties/${propertyId}/photos`,
+    {
+      method: 'POST',
+      body: formData,
+    },
+  );
+}
+
+export async function deletePropertyPhoto(
+  propertyId: string,
+  photoId: string,
+): Promise<void> {
+  return apiFetch<void>(`/properties/${propertyId}/photos/${photoId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function reorderPropertyPhotos(
+  propertyId: string,
+  photoId: string,
+  newOrderIndex: number,
+): Promise<UploadPropertyPhotosResponse> {
+  return apiFetch<UploadPropertyPhotosResponse>(
+    `/properties/${propertyId}/photos/order`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ photoId, newOrderIndex }),
+    },
+  );
+}
+
+export async function setPropertyPhotoPrimary(
+  propertyId: string,
+  photoId: string,
+): Promise<UploadedPropertyPhoto> {
+  return apiFetch<UploadedPropertyPhoto>(
+    `/properties/${propertyId}/photos/${photoId}/primary`,
+    {
+      method: 'PATCH',
+    },
+  );
+}
+
 export async function listLandlordProperties(params?: {
   status?: string;
   query?: string;
