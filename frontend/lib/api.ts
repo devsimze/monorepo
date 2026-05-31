@@ -2,6 +2,7 @@ import type { BackendErrorResponse } from './errors'
 import { enqueueOfflineRequest } from './offline-queue'
 
 const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+const apiVersion = "/api/v1";
 
 export const ACCOUNT_FROZEN_MESSAGE =
   "Account frozen due to negative balance. Please top up to continue.";
@@ -139,7 +140,7 @@ export async function apiFetch<T>(
       } as T
     }
 
-    const res = await fetch(`${baseUrl}${path}`, {
+    const res = await fetch(`${baseUrl}${apiVersion}${path}`, {
       cache: "no-store",
       headers,
       ...options,
