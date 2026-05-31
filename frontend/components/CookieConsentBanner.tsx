@@ -1,21 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useCookieConsent } from '@/hooks/useCookieConsent'
 import { CookiePreferenceModal } from '@/components/CookiePreferenceModal'
 
 export function CookieConsentBanner() {
-  const [isMounted, setIsMounted] = useState(false)
-  const { showBanner, acceptAll, rejectNonEssential, openPreferences } =
+  const { showBanner, acceptAll, rejectNonEssential, openPreferences, isLoaded } =
     useCookieConsent()
 
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  if (!isMounted || !showBanner) {
+  if (!isLoaded || !showBanner) {
     return <CookiePreferenceModal />
   }
 
