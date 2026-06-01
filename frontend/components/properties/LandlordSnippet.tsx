@@ -1,10 +1,12 @@
 import React from "react";
-import { CheckCircle, Clock, CalendarDays } from "lucide-react";
+import { Clock, CalendarDays } from "lucide-react";
 import Link from "next/link";
+import { LandlordVerificationBadge, type LandlordVerificationLevel } from "@/components/LandlordVerificationBadge";
 
 export interface LandlordProfile {
   name: string;
   verified: boolean;
+  verificationLevel?: LandlordVerificationLevel;
   listings: number;
   responseTime: string;
   listedSince?: string;
@@ -32,21 +34,15 @@ export function LandlordSnippet({ landlord }: LandlordSnippetProps) {
         </div>
         <div>
           <p className="font-bold text-lg leading-tight">{landlord.name}</p>
-          <span
-            className={`mt-1.5 inline-flex items-center gap-1 border-2 px-2 py-0.5 text-xs font-bold ${
-              landlord.verified
-                ? "border-green-600 bg-green-100 text-green-700"
-                : "border-muted-foreground/40 bg-muted text-muted-foreground"
-            }`}
-          >
-            {landlord.verified ? (
-              <>
-                <CheckCircle className="h-3 w-3" /> Verified KYC
-              </>
-            ) : (
-              "KYC Pending"
-            )}
-          </span>
+          <div className="mt-2">
+            <LandlordVerificationBadge
+              level={
+                landlord.verificationLevel ??
+                (landlord.verified ? 'id_verified' : 'unverified')
+              }
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 

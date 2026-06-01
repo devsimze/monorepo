@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LandlordVerificationBadge } from "@/components/LandlordVerificationBadge";
 import { setListingSaved } from "@/lib/savedPropertiesApi";
 import { showErrorToast } from "@/lib/toast";
 
@@ -44,6 +45,11 @@ export interface PropertyCardData {
   installmentPlanMonths?: number;
   photos?: string[];
   hasApprovedInspection?: boolean;
+  landlordVerificationLevel?:
+    | 'unverified'
+    | 'id_verified'
+    | 'id_and_property_verified'
+    | 'premium';
 }
 
 export interface PropertyCardProps {
@@ -360,6 +366,17 @@ export function PropertyCard({
     </button>
   ) : null;
 
+  const overlay =
+    imageOverlay ||
+    (property.landlordVerificationLevel ? (
+      <div className="absolute left-3 top-3 z-20">
+        <LandlordVerificationBadge
+          level={property.landlordVerificationLevel}
+          size="sm"
+        />
+      </div>
+    ) : null);
+
   const badges = (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <Badge
@@ -425,7 +442,7 @@ export function PropertyCard({
           <div className="relative w-72 shrink-0 border-r-3 border-foreground">
             <PropertyImageCarousel
               property={property}
-              overlay={imageOverlay}
+              overlay={overlay}
               className="aspect-auto h-48 w-full border-0"
             />
             {favoriteButton}
@@ -444,7 +461,7 @@ export function PropertyCard({
       )}
     >
       <div className="relative border-b-3 border-foreground">
-        <PropertyImageCarousel property={property} overlay={imageOverlay} />
+        <PropertyImageCarousel property={property} overlay={overlay} />
         {favoriteButton}
       </div>
       <div className="p-4">{bodyContent}</div>
