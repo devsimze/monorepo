@@ -42,6 +42,17 @@ export const allProperties = [
       verified: true,
       listings: 15,
       responseTime: "Within 24 hours",
+      listedSince: "2021",
+    },
+    inspectionReport: {
+      overallGrade: "A-",
+      date: "Oct 12, 2025",
+      inspectorName: "Jane Doe",
+      roomConditions: [
+        { room: "Living Room", grade: "A", notes: "Excellent condition, no visible flaws." },
+        { room: "Kitchen", grade: "B+", notes: "Minor scratches on countertop, otherwise fine." },
+        { room: "Master Bedroom", grade: "A-", notes: "Clean, walls recently painted." }
+      ]
     },
     whistleblower: {
       name: "Chiamaka Okonkwo",
@@ -87,6 +98,17 @@ export const allProperties = [
       verified: true,
       listings: 20,
       responseTime: "Within 12 hours",
+      listedSince: "2022",
+    },
+    inspectionReport: {
+      overallGrade: "A",
+      date: "Nov 05, 2025",
+      inspectorName: "John Smith",
+      roomConditions: [
+        { room: "Living Room", grade: "A", notes: "Bright and spacious, perfect flooring." },
+        { room: "Kitchen", grade: "A-", notes: "Modern appliances, all fully functional." },
+        { room: "Bedroom", grade: "A", notes: "Immaculate condition." }
+      ]
     },
     whistleblower: {
       name: "Adanna Smith",
@@ -137,6 +159,17 @@ export const allProperties = [
       verified: true,
       listings: 8,
       responseTime: "Within 48 hours",
+      listedSince: "2020",
+    },
+    inspectionReport: {
+      overallGrade: "B+",
+      date: "Sep 20, 2025",
+      inspectorName: "Jane Doe",
+      roomConditions: [
+        { room: "Living Room", grade: "B+", notes: "Clean walls, very minor baseboard wear." },
+        { room: "Kitchen", grade: "A", notes: "Gourmet design, top-tier build quality." },
+        { room: "Bedrooms", grade: "B", notes: "Light wear on master bath door hinges." }
+      ]
     },
     whistleblower: {
       name: "Chioma Ukaegbu",
@@ -180,6 +213,7 @@ export const allProperties = [
       verified: false,
       listings: 3,
       responseTime: "Within 48 hours",
+      listedSince: "2023",
     },
     whistleblower: {
       name: "Blessing Okafor",
@@ -226,6 +260,7 @@ export const allProperties = [
       verified: true,
       listings: 25,
       responseTime: "Within 6 hours",
+      listedSince: "2019",
     },
     whistleblower: {
       name: "Tunde Adeyemi",
@@ -272,6 +307,17 @@ export const allProperties = [
       verified: true,
       listings: 20,
       responseTime: "Within 24 hours",
+      listedSince: "2021",
+    },
+    inspectionReport: {
+      overallGrade: "A-",
+      date: "Dec 01, 2025",
+      inspectorName: "John Smith",
+      roomConditions: [
+        { room: "Main Compound", grade: "A", notes: "Extremely spacious and well-secured." },
+        { room: "Living Room", grade: "A-", notes: "Nice high ceilings, clean walls." },
+        { room: "Kitchen", grade: "B+", notes: "Adequate cabinets and spacing." }
+      ]
     },
     whistleblower: {
       name: "Folake Adekunle",
@@ -316,6 +362,17 @@ export const allProperties = [
       verified: true,
       listings: 30,
       responseTime: "Within 2 hours",
+      listedSince: "2022",
+    },
+    inspectionReport: {
+      overallGrade: "A",
+      date: "Jan 15, 2026",
+      inspectorName: "Jane Doe",
+      roomConditions: [
+        { room: "Living Room", grade: "A", notes: "Perfect state, elegant lighting." },
+        { room: "Kitchen", grade: "A", notes: "Fully upgraded fittings, spotless." },
+        { room: "Bedrooms", grade: "A-", notes: "Cozy and freshly painted." }
+      ]
     },
     whistleblower: {
       name: "Zainab Hassan",
@@ -366,6 +423,17 @@ export const allProperties = [
       verified: true,
       listings: 3,
       responseTime: "Within 2 hours",
+      listedSince: "2021",
+    },
+    inspectionReport: {
+      overallGrade: "A+",
+      date: "Feb 10, 2026",
+      inspectorName: "Jane Doe",
+      roomConditions: [
+        { room: "Grand Salon", grade: "A+", notes: "Stunning panoramic layout, flawless execution." },
+        { room: "Chef Kitchen", grade: "A+", notes: "Sub-Zero appliances, state-of-the-art." },
+        { room: "Spa Bathroom", grade: "A+", notes: "Luxury marble finishes, brand new feel." }
+      ]
     },
     whistleblower: {
       name: "Ngozi Eze",

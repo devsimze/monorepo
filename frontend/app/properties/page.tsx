@@ -3,8 +3,9 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, SlidersHorizontal, SearchX, X } from "lucide-react";
+import { Search, SlidersHorizontal, SearchX, X, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,37 +42,40 @@ function PropertiesContent() {
   const [savedListingIds, setSavedListingIds] = useState<string[]>([]);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [showFilters, setShowFilters] = useState(false);
+  const [properties, setProperties] = useState<PropertyListing[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(
+    searchParams.get("query") || "",
+  );
 
-  const searchQuery = searchParams.get("q") || "";
-  const selectedLocation = searchParams.get("location") || "All Locations";
-  const selectedPrice = searchParams.get("price") || "Any Price";
-  const selectedBeds = searchParams.get("beds") || "Any";
-  const sortBy = searchParams.get("sort") || "newest";
+  // Filter state from URL
+  const city = searchParams.get("city") || "";
+  const area = searchParams.get("area") || "";
+  const minBedrooms = searchParams.get("minBedrooms") || "";
+  const maxBedrooms = searchParams.get("maxBedrooms") || "";
+  const minBathrooms = searchParams.get("minBathrooms") || "";
+  const maxBathrooms = searchParams.get("maxBathrooms") || "";
+  const minAnnualRent = searchParams.get("minAnnualRent") || "";
+  const maxAnnualRent = searchParams.get("maxAnnualRent") || "";
+  const sortBy = searchParams.get("sortBy") || "newest";
+  const page = parseInt(searchParams.get("page") || "1", 10);
 
-  const updateParams = (params: Record<string, string>) => {
-    const newParams = new URLSearchParams();
-    const currentQ = searchParams.get("q") || "";
-    const currentLocation = searchParams.get("location") || "All Locations";
-    const currentPrice = searchParams.get("price") || "Any Price";
-    const currentBeds = searchParams.get("beds") || "Any";
-    const currentSort = searchParams.get("sort") || "newest";
-
-    const merged = {
-      q: params.q !== undefined ? params.q : currentQ,
-      location: params.location !== undefined ? params.location : currentLocation,
-      price: params.price !== undefined ? params.price : currentPrice,
-      beds: params.beds !== undefined ? params.beds : currentBeds,
-      sort: params.sort !== undefined ? params.sort : currentSort,
-    };
-
-    Object.entries(merged).forEach(([key, value]) => {
-      if (value === "All Locations" || value === "Any Price" || value === "Any" || value === "newest") {
+  const updateParams = (updates: Record<string, string>) => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value || value === "Any" || value === "newest") {
         newParams.delete(key);
       } else {
         newParams.set(key, value);
       }
     });
-    router.push(`?${newParams.toString()}`);
+    // Reset to page 1 when filters change
+    if (!updates.page) {
+      newParams.delete("page");
+    }
+    router.push(`/properties?${newParams.toString()}`);
   };
 
   const clearAllFilters = () => {
@@ -179,31 +183,6 @@ function PropertiesContent() {
     );
   };
 
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    updateParams({ q: query });
-  };
-
-  const handleLocationChange = (location: string) => {
-    setSelectedLocation(location);
-    updateParams({ location });
-  };
-
-  const handlePriceChange = (price: string) => {
-    setSelectedPrice(price);
-    updateParams({ price });
-  };
-
-  const handleBedsChange = (beds: string) => {
-    setSelectedBeds(beds);
-    updateParams({ beds });
-  };
-
-  const handleSortChange = (sort: string) => {
-    setSortBy(sort);
-    updateParams({ sort });
-  };
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -211,39 +190,6 @@ function PropertiesContent() {
       minimumFractionDigits: 0,
     }).format(price);
   };
-
-  let filteredProperties = properties.filter((property) => {
-    const matchesSearch =
-      property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      property.location.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesLocation =
-      selectedLocation === "All Locations" ||
-      property.location.includes(selectedLocation);
-
-    let matchesPrice = true;
-    if (selectedPrice === "Under ₦2M") matchesPrice = property.price < 2000000;
-    else if (selectedPrice === "₦2M - ₦5M")
-      matchesPrice = property.price >= 2000000 && property.price <= 5000000;
-    else if (selectedPrice === "₦5M - ₦10M")
-      matchesPrice = property.price > 5000000 && property.price <= 10000000;
-    else if (selectedPrice === "Above ₦10M")
-      matchesPrice = property.price > 10000000;
-
-    let matchesBeds = true;
-    if (selectedBeds !== "Any") {
-      if (selectedBeds === "4+") matchesBeds = property.beds >= 4;
-      else matchesBeds = property.beds === Number.parseInt(selectedBeds);
-    }
-
-    return matchesSearch && matchesLocation && matchesPrice && matchesBeds;
-  });
-
-  if (sortBy === "price-low") {
-    filteredProperties = [...filteredProperties].sort((a, b) => a.price - b.price);
-  } else if (sortBy === "price-high") {
-    filteredProperties = [...filteredProperties].sort((a, b) => b.price - a.price);
-  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -270,34 +216,45 @@ function PropertiesContent() {
                 type="text"
                 placeholder="Search by location or property name..."
                 value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    updateParams({ query: searchQuery });
+                  }
+                }}
                 className="border-3 border-foreground bg-background pl-12 py-6 font-medium shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] focus:translate-x-0.5 focus:translate-y-0.5 focus:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
               />
             </div>
 
-            <Button
-              onClick={() => setShowFilters(!showFilters)}
-              className="border-3 border-foreground bg-background px-6 py-6 font-bold text-foreground shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] md:w-auto"
-            >
-              <SlidersHorizontal className="mr-2 h-5 w-5" />
-              Filters
-              {(selectedLocation !== "All Locations" ||
-                selectedPrice !== "Any Price" ||
-                selectedBeds !== "Any") && (
-                <span className="ml-2 flex h-6 w-6 items-center justify-center bg-primary text-xs font-bold">
-                  {
-                    [
-                      selectedLocation !== "All Locations",
-                      selectedPrice !== "Any Price",
-                      selectedBeds !== "Any",
-                    ].filter(Boolean).length
-                  }
-                </span>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => updateParams({ query: searchQuery })}
+                className="border-3 border-foreground bg-primary px-6 py-6 font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
+              >
+                Search
+              </Button>
+              <Link href={`/properties/map?${searchParams.toString()}`}>
+                <Button className="border-3 border-foreground bg-background px-6 py-6 font-bold text-foreground shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+                  <Map className="mr-2 h-5 w-5" />
+                  Map View
+                </Button>
+              </Link>
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                className="border-3 border-foreground bg-background px-6 py-6 font-bold text-foreground shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
+              >
+                <SlidersHorizontal className="mr-2 h-5 w-5" />
+                Filters
+                {hasActiveFilters && (
+                  <span className="ml-2 flex h-6 w-6 items-center justify-center bg-primary text-xs font-bold">
+                    !
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
 
-          {/* Filter Options */}
+          {/* Filter Panel */}
           {showFilters && (
             <div className="mt-6 border-3 border-foreground bg-background p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
               <div className="flex items-center justify-between mb-4">
@@ -307,72 +264,84 @@ function PropertiesContent() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    handleLocationChange("All Locations");
-                    handlePriceChange("Any Price");
-                    handleBedsChange("Any");
-                    handleSortChange("newest");
-                  }}
+                  onClick={clearAllFilters}
                   className="text-sm underline"
                 >
                   Clear All
                 </Button>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-3">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {/* City */}
                 <div>
                   <p className="mb-2 block font-mono text-sm font-bold">
-                    Location
+                    City
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {locations.map((loc) => (
+                    {CITIES.map((c) => (
                       <button
-                        key={loc}
-                        onClick={() => handleLocationChange(loc)}
+                        key={c}
+                        onClick={() =>
+                          updateParams({ city: city === c ? "" : c })
+                        }
                         className={`border-2 border-foreground px-3 py-2 text-sm font-medium transition-all ${
-                          selectedLocation === loc
+                          city === c
                             ? "bg-foreground text-background"
                             : "bg-background hover:bg-muted"
                         }`}
                       >
-                        {loc}
+                        {c}
                       </button>
                     ))}
                   </div>
                 </div>
 
+                {/* Area */}
                 <div>
                   <p className="mb-2 block font-mono text-sm font-bold">
-                    Price Range (Annual)
+                    Neighbourhood
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {priceRanges.map((range) => (
-                      <button
-                        key={range}
-                        onClick={() => handlePriceChange(range)}
-                        className={`border-2 border-foreground px-3 py-2 text-sm font-medium transition-all ${
-                          selectedPrice === range
-                            ? "bg-foreground text-background"
-                            : "bg-background hover:bg-muted"
-                        }`}
-                      >
-                        {range}
-                      </button>
-                    ))}
-                  </div>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Lekki, Victoria Island"
+                    value={area}
+                    onChange={(e) => updateParams({ area: e.target.value })}
+                    className="border-2 border-foreground bg-background"
+                  />
                 </div>
 
+                {/* Bedrooms */}
                 <div>
                   <p className="mb-2 block font-mono text-sm font-bold">
                     Bedrooms
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {bedOptions.map((beds) => (
+                    {BED_OPTIONS.map((beds) => (
                       <button
                         key={beds}
-                        onClick={() => handleBedsChange(beds)}
+                        onClick={() =>
+                          updateParams({
+                            minBedrooms:
+                              beds === "Any"
+                                ? ""
+                                : beds === "4+"
+                                  ? "4"
+                                  : beds,
+                            maxBedrooms:
+                              beds === "Any"
+                                ? ""
+                                : beds === "4+"
+                                  ? ""
+                                  : beds,
+                          })
+                        }
                         className={`border-2 border-foreground px-4 py-2 text-sm font-medium transition-all ${
-                          selectedBeds === beds
+                          (beds === "Any" && !minBedrooms && !maxBedrooms) ||
+                          (beds === "4+" && minBedrooms === "4" && !maxBedrooms) ||
+                          (beds !== "Any" &&
+                            beds !== "4+" &&
+                            minBedrooms === beds &&
+                            maxBedrooms === beds)
                             ? "bg-foreground text-background"
                             : "bg-background hover:bg-muted"
                         }`}
@@ -383,19 +352,86 @@ function PropertiesContent() {
                   </div>
                 </div>
 
+                {/* Bathrooms */}
+                <div>
+                  <p className="mb-2 block font-mono text-sm font-bold">
+                    Bathrooms
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {BATH_OPTIONS.map((baths) => (
+                      <button
+                        key={baths}
+                        onClick={() =>
+                          updateParams({
+                            minBathrooms:
+                              baths === "Any"
+                                ? ""
+                                : baths === "3+"
+                                  ? "3"
+                                  : baths,
+                            maxBathrooms:
+                              baths === "Any"
+                                ? ""
+                                : baths === "3+"
+                                  ? ""
+                                  : baths,
+                          })
+                        }
+                        className={`border-2 border-foreground px-4 py-2 text-sm font-medium transition-all ${
+                          (baths === "Any" && !minBathrooms && !maxBathrooms) ||
+                          (baths === "3+" && minBathrooms === "3" && !maxBathrooms) ||
+                          (baths !== "Any" &&
+                            baths !== "3+" &&
+                            minBathrooms === baths &&
+                            maxBathrooms === baths)
+                            ? "bg-foreground text-background"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {baths}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price Range */}
+                <div>
+                  <p className="mb-2 block font-mono text-sm font-bold">
+                    Annual Rent Range
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={minAnnualRent}
+                      onChange={(e) =>
+                        updateParams({ minAnnualRent: e.target.value })
+                      }
+                      className="border-2 border-foreground bg-background"
+                    />
+                    <span className="flex items-center">-</span>
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={maxAnnualRent}
+                      onChange={(e) =>
+                        updateParams({ maxAnnualRent: e.target.value })
+                      }
+                      className="border-2 border-foreground bg-background"
+                    />
+                  </div>
+                </div>
+
+                {/* Sort */}
                 <div>
                   <p className="mb-2 block font-mono text-sm font-bold">
                     Sort By
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: "newest", label: "Newest" },
-                      { value: "price-low", label: "Price: Low to High" },
-                      { value: "price-high", label: "Price: High to Low" },
-                    ].map((option) => (
+                    {SORT_OPTIONS.map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => handleSortChange(option.value)}
+                        onClick={() => updateParams({ sortBy: option.value })}
                         className={`border-2 border-foreground px-3 py-2 text-sm font-medium transition-all ${
                           sortBy === option.value
                             ? "bg-foreground text-background"
@@ -410,6 +446,72 @@ function PropertiesContent() {
               </div>
             </div>
           )}
+
+          {/* Active Filters Display */}
+          {hasActiveFilters && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">Active:</span>
+              {city && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer border-2 border-foreground"
+                  onClick={() => updateParams({ city: "" })}
+                >
+                  {city} <X className="ml-1 h-3 w-3" />
+                </Badge>
+              )}
+              {area && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer border-2 border-foreground"
+                  onClick={() => updateParams({ area: "" })}
+                >
+                  {area} <X className="ml-1 h-3 w-3" />
+                </Badge>
+              )}
+              {(minBedrooms || maxBedrooms) && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer border-2 border-foreground"
+                  onClick={() =>
+                    updateParams({ minBedrooms: "", maxBedrooms: "" })
+                  }
+                >
+                  {minBedrooms || "0"}-{maxBedrooms || "∞"} bed{" "}
+                  <X className="ml-1 h-3 w-3" />
+                </Badge>
+              )}
+              {(minAnnualRent || maxAnnualRent) && (
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer border-2 border-foreground"
+                  onClick={() =>
+                    updateParams({
+                      minAnnualRent: "",
+                      maxAnnualRent: "",
+                    })
+                  }
+                >
+                  {minAnnualRent
+                    ? formatPrice(parseInt(minAnnualRent, 10))
+                    : "₦0"}{" "}
+                  -{" "}
+                  {maxAnnualRent
+                    ? formatPrice(parseInt(maxAnnualRent, 10))
+                    : "∞"}{" "}
+                  <X className="ml-1 h-3 w-3" />
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-xs underline"
+              >
+                Clear all
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -419,9 +521,7 @@ function PropertiesContent() {
           <div className="mb-6 flex items-center justify-between">
             <p className="text-muted-foreground">
               Showing{" "}
-              <span className="font-bold text-foreground">
-                {filteredProperties.length}
-              </span>{" "}
+              <span className="font-bold text-foreground">{total}</span>{" "}
               properties
             </p>
           </div>
@@ -442,12 +542,7 @@ function PropertiesContent() {
                 Try adjusting your filters or search query.
               </p>
               <Button
-                onClick={() => {
-                  handleSearchChange("");
-                  handleLocationChange("All Locations");
-                  handlePriceChange("Any Price");
-                  handleBedsChange("Any");
-                }}
+                onClick={clearAllFilters}
                 className="mt-6 border-3 border-foreground bg-primary font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
               >
                 Clear Filters
@@ -502,7 +597,15 @@ function PropertiesContent() {
 
 export default function PropertiesPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <p className="font-mono font-bold text-muted-foreground">
+            Loading properties...
+          </p>
+        </div>
+      }
+    >
       <PropertiesContent />
     </Suspense>
   );

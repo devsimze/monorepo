@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
   Home,
@@ -10,33 +10,46 @@ import {
   Settings,
   Calendar,
   Clock,
-  CheckCircle,
   AlertCircle,
   FileText,
   Wallet,
-  Plus,
-  Receipt,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { DashboardHeader } from "@/components/dashboard-header"
 import {
-  tenantPastPayments as pastPayments,
-  tenantPaymentSchedule as paymentSchedule,
-  tenantWalletData as walletData,
-} from "@/lib/mockData"
-import { getTenantPaymentStatusPresentation } from "@/lib/tenantPaymentStatus"
-
-// Wallet balance - checked first before auto-deduction
-// (mock data lives in lib/mockData)
+  getPaymentSchedule,
+  getWalletBalance,
+  initiateQuickPay,
+  type PaymentScheduleItem,
+  type TenantDeal,
+} from "@/lib/tenantApi"
+import { showErrorToast, showSuccessToast } from "@/lib/toast"
+import { usePaymentHistory } from "@/hooks/usePaymentHistory"
+import { PaymentTimeline } from "@/components/payment/PaymentTimeline"
+import { UpcomingScheduleTable } from "@/components/payment/UpcomingScheduleTable"
 
 export default function TenantPaymentsPage() {
-  const [activeTab, setActiveTab] = useState<"upcoming" | "history" | "wallet">("upcoming")
-  const [topUpAmount, setTopUpAmount] = useState("")
-  const [walletBalance, setWalletBalance] = useState(walletData.balance)
+  const [activeTab, setActiveTab] = useState<"schedule" | "history">("schedule")
+  const [walletBalance, setWalletBalance] = useState(0)
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>([])
+  const [nextPayment, setNextPayment] = useState<PaymentScheduleItem | null>(null)
+  const [deals, setDeals] = useState<TenantDeal[]>([])
+  const [selectedDeal, setSelectedDeal] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const {
+    payments,
+    loadMore,
+    hasMore,
+    isLoading: isHistoryLoading,
+  } = usePaymentHistory({
+    dealId: selectedDeal,
+    limit: 10,
+  })
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -46,7 +59,84 @@ export default function TenantPaymentsPage() {
     }).format(amount)
   }
 
-  const nextPayment = paymentSchedule.find((p) => p.status === "upcoming")
+  const loadData = async () => {
+    setIsLoading(true)
+
+    try {
+      const [scheduleRes, walletRes] = await Promise.all([
+        getPaymentSchedule(),
+        getWalletBalance(),
+      ])
+
+      if (scheduleRes.success) {
+        setPaymentSchedule(scheduleRes.data.schedule)
+        setNextPayment(scheduleRes.data.nextPayment)
+        setDeals(scheduleRes.data.deals ?? [])
+        setSelectedDeal(
+          scheduleRes.data.dealId || scheduleRes.data.deals?.[0]?.dealId || null,
+        )
+      }
+
+      if (walletRes.success) {
+        setWalletBalance(walletRes.data.balance)
+      }
+    } catch (error: any) {
+      showErrorToast(error?.message || "Failed to load payment data")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void loadData()
+  }, [])
+
+  const handleQuickPay = async (method: "wallet" | "card") => {
+    if (!selectedDeal || !nextPayment) {
+      showErrorToast("No active payment found")
+      return
+    }
+
+    setIsProcessing(true)
+    try {
+      const response = await initiateQuickPay({
+        dealId: selectedDeal,
+        amount: nextPayment.amount,
+        paymentMethod: method,
+      })
+
+      if (response.success) {
+        if (response.data.redirectUrl) {
+          window.location.href = response.data.redirectUrl
+        } else {
+          showSuccessToast(response.data.message)
+          await loadData()
+        }
+      }
+    } catch (error: any) {
+      showErrorToast(error?.message || "Payment failed")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleReceiptDownload = (reference: string) => {
+    window.open(`/api/v1/tenant/payments/receipt/${reference}`, "_blank")
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardHeader />
+        <main className="ml-64 min-h-screen pt-20 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 rounded-3xl border-3 border-foreground bg-card p-10 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+            <Loader2 className="h-10 w-10 animate-spin text-foreground" />
+            <p className="text-sm font-bold text-foreground">Loading payment details...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -158,114 +248,88 @@ export default function TenantPaymentsPage() {
           </div>
 
           {/* Tabs */}
-          <div className="mb-6 flex gap-4">
-            {[
-              { id: "upcoming", label: "Upcoming Payments" },
-              { id: "history", label: "Payment History" },
-              { id: "wallet", label: "Your Wallet" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`border-3 border-foreground px-6 py-3 font-bold transition-all ${
-                  activeTab === tab.id
-                    ? "bg-foreground text-background shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
-                    : "bg-card hover:bg-muted"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-4">
+              {[
+                { id: "schedule", label: "Schedule" },
+                { id: "history", label: "History" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  className={`border-3 border-foreground px-6 py-3 font-bold transition-all ${
+                    activeTab === tab.id
+                      ? "bg-foreground text-background shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
+                      : "bg-card hover:bg-muted"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {deals.length > 1 ? (
+              <div className="flex flex-col gap-2 rounded-3xl border-2 border-foreground/10 bg-muted p-4">
+                <Label htmlFor="deal-select" className="text-sm font-bold">
+                  Select deal
+                </Label>
+                <select
+                  id="deal-select"
+                  value={selectedDeal ?? ""}
+                  onChange={(event) => setSelectedDeal(event.target.value)}
+                  className="rounded-2xl border-2 border-foreground/20 bg-background px-4 py-3 text-foreground"
+                >
+                  {deals.map((deal) => (
+                    <option key={deal.dealId} value={deal.dealId}>
+                      {deal.leaseName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
 
-          {/* Upcoming Payments Tab */}
-          {activeTab === "upcoming" && (
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <Card className="border-3 border-foreground p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                  <h3 className="mb-6 text-lg font-bold">Payment Schedule</h3>
-                  <div className="space-y-3">
-                    {paymentSchedule.map((payment) => {
-                      const statusPresentation = getTenantPaymentStatusPresentation(
-                        payment.status,
-                      )
-
-                      return (
-                        <div
-                          key={`${payment.month}-${payment.dueDate}-${payment.amount}`}
-                          className={`flex items-center justify-between border-3 border-foreground p-4 ${
-                            payment.status === "upcoming" ? "bg-primary/10" : "bg-card"
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div
-                              className={`flex h-10 w-10 items-center justify-center border-2 border-foreground ${statusPresentation.iconContainerClassName}`}
-                            >
-                              {payment.status === "upcoming" ? (
-                                <AlertCircle className="h-5 w-5" />
-                              ) : (
-                                <Clock className="h-5 w-5" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-bold">{payment.month}</p>
-                              <p className="text-sm text-muted-foreground">Due {payment.dueDate}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span className="font-mono font-bold">{formatCurrency(payment.amount)}</span>
-                            <Badge
-                              variant={statusPresentation.variant}
-                              className={statusPresentation.className}
-                            >
-                              {statusPresentation.label}
-                            </Badge>
-                            {payment.status === "upcoming" && (
-                              <Button className="border-2 border-foreground bg-primary font-bold shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
-                                Pay Now
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </Card>
-              </div>
-
-              {/* Quick Pay */}
+          {/* Schedule Tab */}
+          {activeTab === "schedule" && (
+            <div className="space-y-6">
               <Card className="border-3 border-foreground p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                <h3 className="mb-4 text-lg font-bold">Quick Pay</h3>
-                <p className="mb-6 text-sm text-muted-foreground">
-                  Make a manual payment towards your next installment
-                </p>
-
-                <div className="mb-4 border-3 border-foreground bg-muted/50 p-4">
-                  <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                  <p className="text-2xl font-bold">{formatCurrency(walletBalance)}</p>
-                  {walletBalance >= (nextPayment?.amount || 0) && (
-                    <p className="mt-1 text-sm text-secondary">Sufficient for next payment</p>
-                  )}
+                <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold">Payment Schedule</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Track upcoming installments and pay the next due item from one place.
+                    </p>
+                  </div>
+                  {nextPayment ? (
+                    <div className="rounded-3xl border-2 border-foreground/20 bg-muted p-4">
+                      <p className="text-sm text-muted-foreground">Next due installment</p>
+                      <p className="text-2xl font-bold">{formatCurrency(nextPayment.amount)}</p>
+                      <p className="text-sm text-muted-foreground">Due {nextPayment.dueDate}</p>
+                    </div>
+                  ) : null}
                 </div>
 
-                <Button className="mb-4 w-full border-3 border-foreground bg-primary font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
-                  <Wallet className="mr-2 h-4 w-4" />
-                  Pay from Wallet
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full border-3 border-foreground bg-transparent font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
-                >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Pay with Card
-                </Button>
-
-                <div className="mt-6 border-t-2 border-foreground pt-4">
-                  <p className="text-xs text-muted-foreground">
-                    Payments from your wallet are processed instantly. Card payments may take 1-2 business days.
-                  </p>
-                </div>
+                {paymentSchedule.length === 0 ? (
+                  <div className="flex flex-col items-center py-12 text-center">
+                    <Calendar className="h-16 w-16 text-muted-foreground" />
+                    <h3 className="mt-4 font-bold">No upcoming installments</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Your future repayment schedule will appear here when available.
+                    </p>
+                  </div>
+                ) : (
+                  <UpcomingScheduleTable
+                    schedule={paymentSchedule.map((payment) => ({
+                      period: payment.period,
+                      month: payment.month,
+                      amount: payment.amount,
+                      dueDate: payment.dueDate,
+                      status: payment.status,
+                      isNextDue: payment.isNextDue,
+                    }))}
+                    onPayNow={() => handleQuickPay("card")}
+                  />
+                )}
               </Card>
             </div>
           )}
@@ -273,161 +337,28 @@ export default function TenantPaymentsPage() {
           {/* Payment History Tab */}
           {activeTab === "history" && (
             <Card className="border-3 border-foreground p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-              <h3 className="mb-6 text-lg font-bold">Payment History</h3>
-              <div className="space-y-3">
-                {pastPayments.length === 0 ? (
-                  <div className="flex flex-col items-center py-12 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center border-3 border-foreground bg-muted">
-                      <Receipt className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="mt-4 font-bold">No payment history</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Your completed payments will appear here.
-                    </p>
-                  </div>
-                ) : pastPayments.map((payment) => {
-                  const statusPresentation = getTenantPaymentStatusPresentation(
-                    payment.status,
-                  )
-
-                  return (
-                    <div
-                      key={`${payment.month}-${payment.paidDate}-${payment.amount}`}
-                      className="flex items-center justify-between border-b-2 border-foreground/10 pb-3 last:border-0"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`flex h-10 w-10 items-center justify-center border-2 border-foreground ${statusPresentation.iconContainerClassName}`}
-                        >
-                          <CheckCircle className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="font-bold">{payment.month}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Paid on {payment.paidDate} via {payment.method}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono font-bold">{formatCurrency(payment.amount)}</p>
-                        <Badge
-                          variant={statusPresentation.variant}
-                          className={statusPresentation.className}
-                        >
-                          {statusPresentation.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">Payment History</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Review completed installments, download receipts, and confirm payment status.
+                  </p>
+                </div>
+                <div className="rounded-3xl border-2 border-foreground/20 bg-muted p-4 text-sm">
+                  {payments.length} payment{payments.length === 1 ? "" : "s"} recorded
+                </div>
               </div>
+
+              <PaymentTimeline
+                payments={payments}
+                onDownloadReceipt={handleReceiptDownload}
+                onLoadMore={loadMore}
+                hasMore={hasMore}
+                isLoading={isHistoryLoading}
+              />
             </Card>
           )}
 
-          {/* Wallet Tab */}
-          {activeTab === "wallet" && (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card className="border-3 border-foreground p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                <h3 className="mb-4 text-lg font-bold">Your Wallet</h3>
-                <div className="mb-6 border-3 border-foreground bg-primary/10 p-6">
-                  <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                  <p className="text-4xl font-bold">{formatCurrency(walletBalance)}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Last top-up: {walletData.lastTopUp}</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="top-up-amount" className="font-bold">Top Up Amount</Label>
-                    <Input
-                      id="top-up-amount"
-                      type="number"
-                      value={topUpAmount}
-                      onChange={(e) => setTopUpAmount(e.target.value)}
-                      placeholder="Enter amount"
-                      className="border-3 border-foreground bg-background py-5 shadow-[3px_3px_0px_0px_rgba(26,26,26,1)]"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[50000, 100000, 200000].map((amount) => (
-                      <button
-                        key={amount}
-                        onClick={() => setTopUpAmount(amount.toString())}
-                        className="border-2 border-foreground bg-muted p-2 text-sm font-bold transition-all hover:bg-muted/80"
-                      >
-                        {formatCurrency(amount)}
-                      </button>
-                    ))}
-                  </div>
-                  <Button className="w-full border-3 border-foreground bg-primary font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Top Up Wallet
-                  </Button>
-                </div>
-              </Card>
-
-              <Card className="border-3 border-foreground p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                <h3 className="mb-4 text-lg font-bold">How Wallet Works</h3>
-                <div className="space-y-4">
-                  <div className="flex gap-4">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground bg-primary font-bold">
-                      1
-                    </div>
-                    <div>
-                      <p className="font-bold">Top up your wallet</p>
-                      <p className="text-sm text-muted-foreground">
-                        Add funds anytime between payments to build up your balance
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground bg-secondary font-bold">
-                      2
-                    </div>
-                    <div>
-                      <p className="font-bold">Wallet is checked first</p>
-                      <p className="text-sm text-muted-foreground">
-                        When payment is due, we check your wallet balance first
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground bg-accent font-bold">
-                      3
-                    </div>
-                    <div>
-                      <p className="font-bold">Auto-debit covers the rest</p>
-                      <p className="text-sm text-muted-foreground">
-                        If wallet is insufficient, the remainder is charged to your linked account
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground bg-muted font-bold">
-                      4
-                    </div>
-                    <div>
-                      <p className="font-bold">Pay ahead anytime</p>
-                      <p className="text-sm text-muted-foreground">
-                        Make manual payments towards future installments whenever you want
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 border-t-2 border-foreground pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-bold">Auto-pay Enabled</p>
-                      <p className="text-sm text-muted-foreground">Payments are automatically deducted</p>
-                    </div>
-                    <div className="flex h-6 w-12 items-center rounded-none border-2 border-foreground bg-secondary p-0.5">
-                      <div className="ml-auto h-4 w-4 border border-foreground bg-foreground" />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
         </div>
       </main>
     </div>

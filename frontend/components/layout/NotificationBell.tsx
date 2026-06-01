@@ -1,0 +1,88 @@
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import { Bell, CheckCheck } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useNotifications } from "@/hooks/useNotifications"
+import { NotificationItemRow } from "./NotificationItem"
+import { markAllNotificationsRead } from "@/lib/notificationsApi"
+import { isAuthenticated } from "@/lib/auth"
+
+export function NotificationBell() {
+  const [open, setOpen] = useState(false)
+  const { unreadCount, notifications, isConnected } = useNotifications()
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  if (!isAuthenticated()) return null
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead()
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(!open)}
+        className="relative border-3 border-foreground font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] hover:translate-x-0.5 hover:translate-y-0.5 transition-all min-h-[44px]"
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+      >
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 border-3 border-foreground bg-card shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] z-50">
+          <div className="flex items-center justify-between p-3 border-b-2 border-foreground/10">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold">Notifications</span>
+              {isConnected ? (
+                <span className="h-2 w-2 rounded-full bg-green-500" title="Connected" />
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-yellow-500" title="Fallback mode" />
+              )}
+            </div>
+            {unreadCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={handleMarkAllRead} className="text-xs gap-1">
+                <CheckCheck className="h-3 w-3" />
+                Mark all read
+              </Button>
+            )}
+          </div>
+
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center py-8 text-center px-4">
+                <Bell className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No notifications yet</p>
+              </div>
+            ) : (
+              notifications.slice(0, 10).map((n) => (
+                <NotificationItemRow key={n.id} {...n} />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

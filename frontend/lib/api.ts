@@ -2,6 +2,7 @@ import type { BackendErrorResponse } from './errors'
 import { enqueueOfflineRequest } from './offline-queue'
 
 const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+const apiVersion = "/api/v1";
 
 export const ACCOUNT_FROZEN_MESSAGE =
   "Account frozen due to negative balance. Please top up to continue.";
@@ -116,7 +117,9 @@ export async function apiFetch<T>(
   const token = getAuthToken()
 
   const headers = new Headers(options?.headers);
-  headers.set("Content-Type", "application/json");
+  if (!(options?.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
@@ -139,7 +142,7 @@ export async function apiFetch<T>(
       } as T
     }
 
-    const res = await fetch(`${baseUrl}${path}`, {
+    const res = await fetch(`${baseUrl}${apiVersion}${path}`, {
       cache: "no-store",
       headers,
       ...options,
@@ -154,6 +157,10 @@ export async function apiFetch<T>(
         code,
         details,
       })
+    }
+
+    if (res.status === 204 || res.status === 205) {
+      return null as unknown as T
     }
 
     return res.json();

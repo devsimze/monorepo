@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, Mail, Phone, MapPin } from "lucide-react"
+import { useCookieConsentContext } from "@/contexts/CookieConsentContext"
 
 const footerLinks = {
   product: [
@@ -27,6 +28,7 @@ export function Footer() {
   const pathname = usePathname()
   const isAuthPage = pathname === "/login" || pathname === "/signup"
   const isDashboard = pathname.startsWith("/dashboard")
+  const { openPreferences } = useCookieConsentContext()
 
   if (isAuthPage || isDashboard) return null
 
@@ -124,6 +126,15 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <button
+                  onClick={openPreferences}
+                  className="text-background/70 hover:text-background transition-colors text-left"
+                  aria-label="Open cookie preference settings"
+                >
+                  Cookie Settings
+                </button>
+              </li>
             </ul>
           </div>
         </div>

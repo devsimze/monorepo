@@ -55,13 +55,21 @@ export interface ListApplicationsResponse {
 
 // ── Tenant Payment Types ────────────────────────────────────────────────────
 
+export interface TenantDeal {
+  dealId: string;
+  leaseName: string;
+}
+
+export type PaymentStatus = "paid" | "overdue" | "upcoming" | "processing";
+
 export interface PaymentScheduleItem {
   period: number;
   month: string;
   amount: number;
   dueDate: string;
-  status: "paid" | "upcoming" | "pending";
+  status: "paid" | "upcoming" | "pending" | "overdue";
   paidDate?: string;
+  isNextDue?: boolean;
 }
 
 export interface PaymentScheduleResponse {
@@ -70,24 +78,33 @@ export interface PaymentScheduleResponse {
     schedule: PaymentScheduleItem[];
     nextPayment: PaymentScheduleItem | null;
     dealId?: string;
+    deals?: TenantDeal[];
   };
 }
 
 export interface PaymentHistoryItem {
   id: string;
   dealId: string;
-  month: string;
+  reference: string;
   amount: number;
-  status: "paid";
-  paidDate: string;
+  status: PaymentStatus;
+  transactionDate: string;
+  paidDate?: string;
+  dueDate?: string;
   method: string;
-  timestamp: string;
+  isOverdue?: boolean;
+  daysOverdue?: number;
 }
 
 export interface PaymentHistoryResponse {
   success: boolean;
   data: {
     payments: PaymentHistoryItem[];
+    page: number;
+    limit: number;
+    total: number;
+    nextPage?: number;
+    deals?: TenantDeal[];
   };
 }
 
@@ -216,18 +233,20 @@ export async function listTenantApplications(params?: {
 // ── Payment API Functions ───────────────────────────────────────────────────
 
 export async function getPaymentSchedule(): Promise<PaymentScheduleResponse> {
-  return apiGet<PaymentScheduleResponse>("/api/tenant/payments/schedule");
+  return apiGet<PaymentScheduleResponse>("/api/v1/tenant/payments/schedule");
 }
 
 export async function getPaymentHistory(params?: {
   limit?: number;
-  cursor?: string;
+  page?: number;
+  dealId?: string;
 }): Promise<PaymentHistoryResponse> {
   const query = new URLSearchParams();
   if (params?.limit) query.set("limit", params.limit.toString());
-  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.page) query.set("page", params.page.toString());
+  if (params?.dealId) query.set("dealId", params.dealId);
 
-  const path = `/api/tenant/payments/history${query.toString() ? `?${query.toString()}` : ""}`;
+  const path = `/api/v1/tenant/payments${query.toString() ? `?${query.toString()}` : ""}`;
   return apiGet<PaymentHistoryResponse>(path);
 }
 

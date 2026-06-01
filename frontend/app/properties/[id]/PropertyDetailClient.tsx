@@ -60,6 +60,10 @@ import { ApartmentReviews } from "@/components/properties/ApartmentReviews";
 import PropertyPriceBreakdown from "@/components/properties/PropertyPriceBreakdown";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { TrustIndicatorBar } from "@/components/properties/TrustIndicatorBar";
+import { InspectionReportAccordion } from "@/components/properties/InspectionReportAccordion";
+import { LandlordSnippet } from "@/components/properties/LandlordSnippet";
+import useAuthStore from "@/store/useAuthStore";
 
 const properties = allProperties;
 
@@ -103,6 +107,7 @@ export default function PropertyDetailClient({
   propertyId,
 }: PropertyDetailClientProps) {
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -478,6 +483,21 @@ export default function PropertyDetailClient({
                 </div>
               </div>
 
+              {/* Trust Indicators Bar */}
+              <TrustIndicatorBar
+                landlordKyc={property.landlord?.verified ?? false}
+                inspectionPass={
+                  (property as any).inspectionReport
+                    ? {
+                        date: (property as any).inspectionReport.date,
+                        inspectorName: (property as any).inspectionReport.inspectorName,
+                      }
+                    : null
+                }
+                whistleblowerCleared={!!property.whistleblower}
+                verificationStatus={(property as any).verificationStatus}
+              />
+
               {/* Description */}
               <div className="border-3 border-foreground bg-card p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] sm:p-6">
                 <h2 className="font-mono text-lg font-bold mb-3 sm:text-xl sm:mb-4">
@@ -518,6 +538,15 @@ export default function PropertyDetailClient({
 
               {/* Amenities Legend */}
               <AmenitiesLegend />
+
+              {/* Inspection Report Accordion */}
+              <InspectionReportAccordion 
+                report={(property as any).inspectionReport ? {
+                  overallGrade: (property as any).inspectionReport.overallGrade,
+                  roomConditions: (property as any).inspectionReport.roomConditions,
+                  photos: (property as any).inspectionReport.photos || (property.images.length > 2 ? [property.images[0].url, property.images[1].url].filter(Boolean) as string[] : [])
+                } : null}
+              />
 
               {/* Room Gallery */}
               <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
@@ -666,11 +695,19 @@ export default function PropertyDetailClient({
                   />
 
                   {(property as any).verificationStatus === 'VERIFIED' ? (
-                    <Link href={`/calculator?amount=${installmentPrice}`}>
-                      <Button className="w-full border-3 border-foreground bg-primary py-6 font-mono text-lg font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
-                        Apply Now
-                      </Button>
-                    </Link>
+                    isAuthenticated ? (
+                      <Link href={`/calculator?amount=${installmentPrice}`}>
+                        <Button className="w-full border-3 border-foreground bg-primary py-6 font-mono text-lg font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+                          Apply Now
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link href="/login">
+                        <Button className="w-full border-3 border-foreground bg-primary py-6 font-mono text-lg font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
+                          Login to Apply
+                        </Button>
+                      </Link>
+                    )
                   ) : (
                     <TooltipProvider>
                       <Tooltip>
@@ -753,62 +790,15 @@ export default function PropertyDetailClient({
                 )}
 
                 {/* Landlord Info */}
-                <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                  <h3 className="font-mono font-bold mb-4">Listed By</h3>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center border-2 border-foreground bg-muted font-mono font-bold">
-                      {property.landlord.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold">{property.landlord.name}</p>
-                      <span
-                        className={`mt-1 inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-bold ${
-                          property.landlord.verified
-                            ? "border-secondary bg-secondary/15 text-secondary"
-                            : "border-muted-foreground/40 bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {property.landlord.verified ? (
-                          <>
-                            <CheckCircle className="h-3 w-3" /> Verified
-                            Landlord
-                          </>
-                        ) : (
-                          "Verification pending"
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <p className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Active Listings
-                      </span>
-                      <span className="font-bold">
-                        {property.landlord.listings}
-                      </span>
-                    </p>
-                    <p className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Response Time
-                      </span>
-                      <span className="font-bold">
-                        {property.landlord.responseTime}
-                      </span>
-                    </p>
-                  </div>
-                  <Link
-                    href={`/messages?contact=landlord&propertyId=${property.id}`}
-                  >
-                    <Button
-                      variant="outline"
-                      className="w-full mt-4 border-3 border-foreground bg-transparent py-5 font-bold shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
-                    >
-                      <MessageSquare className="mr-2 h-5 w-5" /> Contact
-                      Landlord
-                    </Button>
-                  </Link>
-                </div>
+                <LandlordSnippet
+                  landlord={{
+                    name: property.landlord.name,
+                    verified: property.landlord.verified,
+                    listings: property.landlord.listings,
+                    responseTime: property.landlord.responseTime,
+                    listedSince: (property.landlord as any).listedSince,
+                  }}
+                />
 
                 {/* Report Listing Card */}
                 <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">

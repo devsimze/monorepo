@@ -98,4 +98,24 @@ describe("PropertyCard", () => {
     expect(screen.getByText("Installment")).toBeInTheDocument();
     expect(screen.getByText("Verified inspection")).toBeInTheDocument();
   });
+
+  it("renders the landlord verification badge when available", () => {
+    render(
+      <PropertyCard
+        property={{
+          listingId: "listing-2",
+          address: "Verified Flat",
+          city: "Lagos",
+          bedrooms: 2,
+          bathrooms: 1,
+          annualRentNgn: 1_800_000,
+          paymentType: "outright",
+          landlordVerificationLevel: "id_verified",
+        }}
+        showFavorite={false}
+      />,
+    )
+
+    expect(screen.getByText("ID Verified")).toBeInTheDocument();
+  });
 });
