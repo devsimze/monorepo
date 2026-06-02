@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs"
+
 type ErrorReportLevel = 'page' | 'section'
 
 interface ErrorReportPayload {
@@ -20,19 +22,26 @@ export async function reportClientError({
   level,
 }: ErrorReportPayload): Promise<string | null> {
   const eventId = buildEventId()
-  const payload = {
-    eventId,
-    level,
-    message: sanitizeMessage(error.message),
-    name: error.name,
-    componentStack:
-      process.env.NODE_ENV === 'production' ? undefined : componentStack?.slice(0, 1500),
-    pathname: typeof window !== 'undefined' ? window.location.pathname : undefined,
-    timestamp: new Date().toISOString(),
-  }
+  
+  // Send error to Sentry
+  Sentry.captureException(error, {
+    tags: {
+      level,
+      componentStack: componentStack ? 'present' : 'absent',
+    },
+    extra: {
+      componentStack: process.env.NODE_ENV === 'production' ? undefined : componentStack?.slice(0, 1500),
+      pathname: typeof window !== 'undefined' ? window.location.pathname : undefined,
+    },
+  })
 
   if (process.env.NODE_ENV !== 'production') {
-    console.error('Client error report:', payload)
+    console.error('Client error report:', {
+      eventId,
+      level,
+      message: sanitizeMessage(error.message),
+      name: error.name,
+    })
     return eventId
   }
 
@@ -47,7 +56,16 @@ export async function reportClientError({
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        eventId,
+        level,
+        message: sanitizeMessage(error.message),
+        name: error.name,
+        componentStack:
+          process.env.NODE_ENV === 'production' ? undefined : componentStack?.slice(0, 1500),
+        pathname: typeof window !== 'undefined' ? window.location.pathname : undefined,
+        timestamp: new Date().toISOString(),
+      }),
       keepalive: true,
     })
   } catch {
