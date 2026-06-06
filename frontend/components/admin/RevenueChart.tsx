@@ -24,7 +24,6 @@ export interface RevenueChartProps {
   onRangeChange?: (range: "7d" | "30d" | "90d") => void;
 }
 
-
 // Format full values for tooltip display
 const formatFullCurrency = (val: number) => {
   return new Intl.NumberFormat("en-NG", {

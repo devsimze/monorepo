@@ -24,3 +24,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# pnpm 10 auto-generated file (CI uses pnpm 9 which can't parse it)
+pnpm-workspace.yaml
