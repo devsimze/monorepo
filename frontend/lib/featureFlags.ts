@@ -12,6 +12,7 @@
  *
  * Adding a new flag: add it to frontend/config/featureFlags.ts — done.
  */
+'use client'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { defaultFlags, type FlagName, type FlagMap } from '@/config/featureFlags'
 
