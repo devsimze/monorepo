@@ -24,6 +24,59 @@ export interface RevenueChartProps {
   onRangeChange?: (range: "7d" | "30d" | "90d") => void;
 }
 
+// Format full values for tooltip display
+const formatFullCurrency = (val: number) => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  }).format(val);
+};
+
+// Format date labels
+const formatDateLabel = (dateStr: string) => {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return dateStr;
+  }
+};
+
+// Custom Neobrutalist Tooltip
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const platformFee = payload.find((p: any) => p.name === "Platform Fee")?.value || 0;
+    const underwritingFee = payload.find((p: any) => p.name === "Underwriting Fee")?.value || 0;
+    const total = platformFee + underwritingFee;
+
+    return (
+      <div className="border-3 border-foreground bg-white text-black p-3 font-mono text-xs shadow-[3px_3px_0px_0px_rgba(26,26,26,1)]">
+        <p className="font-bold border-b-2 border-foreground pb-1 mb-1.5">{formatDateLabel(label)}</p>
+        <p className="flex justify-between gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 bg-primary border border-foreground inline-block"></span>
+            Platform Fee:
+          </span>
+          <span className="font-bold">{formatFullCurrency(platformFee)}</span>
+        </p>
+        <p className="flex justify-between gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 bg-green-500 border border-foreground inline-block"></span>
+            Underwriting:
+          </span>
+          <span className="font-bold">{formatFullCurrency(underwritingFee)}</span>
+        </p>
+        <p className="flex justify-between gap-4 border-t border-dashed border-foreground/30 mt-1.5 pt-1.5 font-bold">
+          <span>Total Revenue:</span>
+          <span className="font-black text-black">{formatFullCurrency(total)}</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function RevenueChart({
   data = [],
   isLoading = false,
@@ -80,59 +133,6 @@ export function RevenueChart({
       return `₦${(val / 1_000).toFixed(0)}K`;
     }
     return `₦${val}`;
-  };
-
-  // Format full values for tooltip display
-  const formatFullCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(val);
-  };
-
-  // Format date labels
-  const formatDateLabel = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  // Custom Neobrutalist Tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const platformFee = payload.find((p: any) => p.name === "Platform Fee")?.value || 0;
-      const underwritingFee = payload.find((p: any) => p.name === "Underwriting Fee")?.value || 0;
-      const total = platformFee + underwritingFee;
-
-      return (
-        <div className="border-3 border-foreground bg-white text-black p-3 font-mono text-xs shadow-[3px_3px_0px_0px_rgba(26,26,26,1)]">
-          <p className="font-bold border-b-2 border-foreground pb-1 mb-1.5">{formatDateLabel(label)}</p>
-          <p className="flex justify-between gap-4">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 bg-primary border border-foreground inline-block"></span>
-              Platform Fee:
-            </span>
-            <span className="font-bold">{formatFullCurrency(platformFee)}</span>
-          </p>
-          <p className="flex justify-between gap-4">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 bg-green-500 border border-foreground inline-block"></span>
-              Underwriting:
-            </span>
-            <span className="font-bold">{formatFullCurrency(underwritingFee)}</span>
-          </p>
-          <p className="flex justify-between gap-4 border-t border-dashed border-foreground/30 mt-1.5 pt-1.5 font-bold">
-            <span>Total Revenue:</span>
-            <span className="font-black text-black">{formatFullCurrency(total)}</span>
-          </p>
-        </div>
-      );
-    }
-    return null;
   };
 
   if (isLoading) {
