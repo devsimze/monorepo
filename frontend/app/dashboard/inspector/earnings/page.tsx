@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Home,
@@ -10,29 +10,55 @@ import {
   Building2,
   CheckCircle,
   Clock,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardHeader } from "@/components/dashboard-header";
-import {
-  inspectorEarnings,
-  type InspectorEarning,
-} from "@/lib/mockData";
+import { getInspectorJobs, type InspectorJob } from "@/lib/inspectorApi";
+import { useFeatureFlag } from "@/lib/featureFlags";
 
 export default function EarningsPage() {
+  const isEnabled = useFeatureFlag("INSPECTOR_DASHBOARD_ENABLED");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [earnings, setEarnings] = useState<InspectorEarning[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<InspectorJob[]>([]);
+
+  const fetchJobs = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getInspectorJobs();
+      setJobs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load earnings");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setEarnings(inspectorEarnings);
-      setIsLoading(false);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchJobs();
+  }, [fetchJobs]);
+
+  const completedJobs = jobs.filter(
+    (j) => j.status === "completed",
+  );
+  const earnings = completedJobs.map((j, idx) => ({
+    id: `earn-${idx}`,
+    jobId: j.id,
+    propertyTitle: j.propertyTitle,
+    address: j.address,
+    inspectionType: j.inspectionType,
+    fee: j.offeredFee,
+    status: "paid",
+    completedAt: j.completedAt || j.createdAt,
+    paidAt: undefined,
+  }));
 
   const totalEarned = earnings.reduce((sum, e) => sum + e.fee, 0);
   const paidAmount = earnings
@@ -41,6 +67,27 @@ export default function EarningsPage() {
   const pendingAmount = earnings
     .filter((e) => e.status === "pending")
     .reduce((sum, e) => sum + e.fee, 0);
+
+  if (!isEnabled) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardHeader />
+        <main className="lg:pl-64">
+          <div className="p-6 lg:p-8">
+            <Card className="border-3 border-foreground p-12 text-center shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+              <DollarSign className="mx-auto h-16 w-16 text-muted-foreground" />
+              <h3 className="mt-4 text-xl font-bold text-foreground">
+                Inspector Dashboard Not Available
+              </h3>
+              <p className="mt-2 text-muted-foreground">
+                The inspector dashboard feature is currently disabled.
+              </p>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,6 +160,20 @@ export default function EarningsPage() {
               Track your completed jobs and payment history
             </p>
           </div>
+
+          {/* Error */}
+          {error && !isLoading && (
+            <Card className="mb-8 border-3 border-foreground p-6 text-center shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+              <p className="text-destructive">{error}</p>
+              <Button
+                onClick={fetchJobs}
+                className="mt-4 border-3 border-foreground bg-primary shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            </Card>
+          )}
 
           {/* Stats */}
           {isLoading ? (

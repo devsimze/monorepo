@@ -5,14 +5,15 @@ import { MapPin, Clock, DollarSign, FileText, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { InspectorJob } from "@/lib/mockData";
+import type { InspectorJob } from "@/lib/inspectorApi";
 
 interface JobCardProps {
   job: InspectorJob;
   onClaim?: (jobId: string) => void;
+  isClaiming?: boolean;
 }
 
-export function JobCard({ job, onClaim }: JobCardProps) {
+export function JobCard({ job, onClaim, isClaiming }: JobCardProps) {
   const isAvailable = job.status === "available";
   const isClaimed = job.status === "claimed" || job.status === "in_progress";
   const isCompleted = job.status === "completed";
@@ -94,9 +95,10 @@ export function JobCard({ job, onClaim }: JobCardProps) {
           {isAvailable ? (
             <Button
               onClick={() => onClaim?.(job.id)}
-              className="border-3 border-foreground bg-primary shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)]"
+              disabled={isClaiming}
+              className="border-3 border-foreground bg-primary shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(26,26,26,1)] disabled:opacity-50"
             >
-              Claim Job
+              {isClaiming ? "Claiming..." : "Claim Job"}
             </Button>
           ) : isClaimed ? (
             <Link href={`/dashboard/inspector/${job.id}`}>

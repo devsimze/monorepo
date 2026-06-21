@@ -9,13 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   InspectionChecklist,
+  inspectionChecklistTemplate,
   type ChecklistCategory,
 } from "./InspectionChecklist";
+import { submitReport } from "@/lib/inspectorApi";
 
 interface ReportSubmitFormProps {
   jobId: string;
   propertyTitle: string;
-  onSubmit?: (data: ReportData) => void;
+  onSubmitted?: () => void;
+  onError?: (error: Error) => void;
 }
 
 export interface ReportData {
@@ -27,7 +30,14 @@ export interface ReportData {
   overallCondition: "excellent" | "good" | "fair" | "poor";
 }
 
-export function ReportSubmitForm({ jobId, propertyTitle, onSubmit }: ReportSubmitFormProps) {
+const CONDITION_MAP: Record<string, "A" | "B" | "C" | "D"> = {
+  excellent: "A",
+  good: "B",
+  fair: "C",
+  poor: "D",
+};
+
+export function ReportSubmitForm({ jobId, propertyTitle, onSubmitted, onError }: ReportSubmitFormProps) {
   const [photos, setPhotos] = useState<File[]>([]);
   const [summary, setSummary] = useState("");
   const [recommendations, setRecommendations] = useState("");
@@ -35,17 +45,15 @@ export function ReportSubmitForm({ jobId, propertyTitle, onSubmit }: ReportSubmi
     "excellent" | "good" | "fair" | "poor"
   >("good");
   const [checklist, setChecklist] = useState<ChecklistCategory[]>(
-    () => {
-      const { inspectionChecklistTemplate } = require("@/lib/mockData");
-      return inspectionChecklistTemplate.map((cat: any) => ({
+    () =>
+      inspectionChecklistTemplate.map((cat) => ({
         ...cat,
-        items: cat.items.map((item: any) => ({
+        items: cat.items.map((item) => ({
           ...item,
           completed: false,
           notes: "",
         })),
-      }));
-    }
+      })),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -62,22 +70,37 @@ export function ReportSubmitForm({ jobId, propertyTitle, onSubmit }: ReportSubmi
     e.preventDefault();
     setIsSubmitting(true);
 
-    const reportData: ReportData = {
-      jobId,
-      checklist,
-      photos,
-      summary,
-      recommendations,
-      overallCondition,
-    };
+    try {
+      const notes = [summary, recommendations].filter(Boolean).join("\n\n");
+      const photoKeys = photos.map((f) => f.name);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      await submitReport(jobId, {
+        overallGrade: CONDITION_MAP[overallCondition] || "B",
+        roomChecklist: checklist.reduce(
+          (acc, cat) => {
+            acc[cat.id] = {
+              category: cat.category,
+              items: cat.items.map((item) => ({
+                id: item.id,
+                label: item.label,
+                completed: item.completed,
+                notes: item.notes,
+              })),
+            };
+            return acc;
+          },
+          {} as Record<string, unknown>,
+        ),
+        photoKeys,
+        notes,
+      });
 
-    onSubmit?.(reportData);
-    setIsSubmitting(false);
-
-    console.log("Inspection report submitted:", reportData);
+      onSubmitted?.();
+    } catch (err) {
+      onError?.(err instanceof Error ? err : new Error("Failed to submit report"));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canSubmit = () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Home,
@@ -10,33 +10,43 @@ import {
   Menu,
   X,
   Building2,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { JobCard } from "@/components/inspector/JobCard";
-import {
-  inspectorJobs,
-  inspectorStats,
-  type InspectorJob,
-} from "@/lib/mockData";
+import { getInspectorJobs, claimJob, type InspectorJob } from "@/lib/inspectorApi";
+import { useFeatureFlag } from "@/lib/featureFlags";
 
 export default function InspectorDashboard() {
+  const isEnabled = useFeatureFlag("INSPECTOR_DASHBOARD_ENABLED");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [jobs, setJobs] = useState<InspectorJob[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "available" | "in_progress" | "completed">(
     "all",
   );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setJobs(inspectorJobs);
+  const fetchJobs = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await getInspectorJobs();
+      setJobs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load jobs");
+    } finally {
       setIsLoading(false);
-    }, 350);
-    return () => clearTimeout(timer);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const filteredJobs = jobs.filter((job) => {
     if (filter === "all") return true;
@@ -47,17 +57,56 @@ export default function InspectorDashboard() {
     return true;
   });
 
-  const handleClaimJob = (jobId: string) => {
-    console.log("Claiming job:", jobId);
-    // Mock API call to claim job
-    setJobs(
-      jobs.map((job) =>
-        job.id === jobId
-          ? { ...job, status: "in_progress" as const, claimedBy: "inspector-1" }
-          : job,
-      ),
-    );
+  const handleClaimJob = async (jobId: string) => {
+    setClaimingId(jobId);
+    try {
+      const claimed = await claimJob(jobId);
+      setJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? claimed : j)),
+      );
+    } catch (err) {
+      console.error("Failed to claim job:", err);
+    } finally {
+      setClaimingId(null);
+    }
   };
+
+  const availableCount = jobs.filter((j) => j.status === "available").length;
+  const inProgressCount = jobs.filter(
+    (j) => j.status === "claimed" || j.status === "in_progress",
+  ).length;
+  const completedCount = jobs.filter((j) => j.status === "completed").length;
+  const totalEarnings = jobs
+    .filter((j) => j.status === "completed")
+    .reduce((sum, j) => sum + j.offeredFee, 0);
+
+  const stats = [
+    { label: "Available Jobs", value: String(availableCount), icon: Building2, color: "bg-primary" },
+    { label: "In Progress", value: String(inProgressCount), icon: FileText, color: "bg-secondary" },
+    { label: "Completed", value: String(completedCount), icon: CheckCircle, color: "bg-accent" },
+    { label: "Total Earnings", value: `₦${totalEarnings.toLocaleString()}`, icon: DollarSign, color: "bg-primary" },
+  ];
+
+  if (!isEnabled) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardHeader />
+        <main className="lg:pl-64">
+          <div className="p-6 lg:p-8">
+            <Card className="border-3 border-foreground p-12 text-center shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+              <FileText className="mx-auto h-16 w-16 text-muted-foreground" />
+              <h3 className="mt-4 text-xl font-bold text-foreground">
+                Inspector Dashboard Not Available
+              </h3>
+              <p className="mt-2 text-muted-foreground">
+                The inspector dashboard feature is currently disabled.
+              </p>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,6 +180,20 @@ export default function InspectorDashboard() {
             </p>
           </div>
 
+          {/* Error */}
+          {error && !isLoading && (
+            <Card className="mb-8 border-3 border-foreground p-6 text-center shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+              <p className="text-destructive">{error}</p>
+              <Button
+                onClick={fetchJobs}
+                className="mt-4 border-3 border-foreground bg-primary shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            </Card>
+          )}
+
           {/* Stats */}
           {isLoading ? (
             <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -140,7 +203,7 @@ export default function InspectorDashboard() {
             </div>
           ) : (
             <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {inspectorStats.map((stat, index) => {
+              {stats.map((stat, index) => {
                 const Icon = stat.icon;
                 return (
                   <Card
@@ -220,7 +283,7 @@ export default function InspectorDashboard() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
               {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} onClaim={handleClaimJob} />
+                <JobCard key={job.id} job={job} onClaim={handleClaimJob} isClaiming={claimingId === job.id} />
               ))}
             </div>
           )}
