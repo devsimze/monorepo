@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Skeleton placeholder matching PropertyCard dimensions to avoid layout shift.
+ * Skeleton placeholder matching PropertyCard dimensions to avoid layout shift000.
  */
 export function PropertyCardSkeleton({
   variant = "grid",
