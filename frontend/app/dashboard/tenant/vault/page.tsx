@@ -3,31 +3,26 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Home,
-  CreditCard,
-  FileText,
-  Settings,
-  MessageSquare,
-  Building2,
-  Menu,
-  X,
   Search,
   Eye,
   Clock,
   AlertTriangle,
   XCircle,
   File,
+  FileText,
   Tag,
   Filter,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DocumentPreviewDialog } from "@/components/tenant/document-preview-dialog";
 import {
   listDocuments,
@@ -142,8 +137,6 @@ export default function DocumentVaultPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const [previewDoc, setPreviewDoc] = useState<DocumentPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -209,56 +202,10 @@ export default function DocumentVaultPage() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center border-3 border-foreground bg-primary shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] lg:hidden"
-      >
-        {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close sidebar"
-          className="fixed inset-0 z-40 bg-foreground/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`fixed left-0 top-0 z-40 h-screen w-64 border-r-3 border-foreground bg-card pt-20 transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <div className="flex h-full flex-col px-4 py-6">
-          <div className="mb-8 border-3 border-foreground bg-secondary p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-            <p className="text-sm font-medium text-foreground">Logged in as</p>
-            <p className="text-lg font-bold text-foreground">Ngozi Adekunle</p>
-            <p className="text-sm text-muted-foreground">Tenant</p>
-          </div>
-          <nav className="flex-1 space-y-2">
-            <Link href="/dashboard/tenant" className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <Home className="h-5 w-5" />Dashboard
-            </Link>
-            <Link href="/dashboard/tenant/payments" className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <CreditCard className="h-5 w-5" />Payments
-            </Link>
-            <Link href="/dashboard/tenant/lease" className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <FileText className="h-5 w-5" />My Lease
-            </Link>
-            <Link href="/dashboard/tenant/vault" className="flex items-center gap-3 border-3 border-foreground bg-primary p-3 font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <ShieldCheck className="h-5 w-5" />Document Vault
-            </Link>
-            <Link href="/properties" className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <Building2 className="h-5 w-5" />Browse Properties
-            </Link>
-            <Link href="/messages" className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <MessageSquare className="h-5 w-5" />Messages
-            </Link>
-            <Link href="/dashboard/tenant/settings" className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]" onClick={() => setSidebarOpen(false)}>
-              <Settings className="h-5 w-5" />Settings
-            </Link>
-          </nav>
-        </div>
-      </aside>
+      <DashboardSidebar
+        role="tenant"
+        userInfo={{ name: "Ngozi Adekunle", roleLabel: "Tenant" }}
+      />
 
       <main className="min-h-screen pt-20 lg:ml-64">
         <div className="p-4 md:p-6 lg:p-8">

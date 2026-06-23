@@ -14,18 +14,17 @@ import {
   Star,
   DollarSign,
   Home,
-  Menu,
-  X,
   Loader2,
 } from "lucide-react";
 import {
   getWhistleblowerDashboardData,
   type WhistleblowerDashboardData,
 } from "@/lib/api/whistleblowerDashboard";
-import { whistleblowerData as mockData } from "@/lib/mockData";
+import useAuthStore from "@/store/useAuthStore";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 
 export default function WhistleblowerDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<WhistleblowerDashboardData | null>(null);
@@ -40,7 +39,6 @@ export default function WhistleblowerDashboard() {
       } catch (err) {
         console.error("Failed to fetch whistleblower data:", err);
         setError("Failed to connect to live data. Please ensure the backend is running.");
-        // Fallback to mock data in development if needed, but the requirement is "live"
       } finally {
         setLoading(false);
       }
@@ -86,73 +84,22 @@ export default function WhistleblowerDashboard() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center border-3 border-foreground bg-primary shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] lg:hidden"
-      >
-        {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close sidebar"
-          className="fixed inset-0 z-40 bg-foreground/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed left-0 top-0 z-40 h-screen w-64 border-r-3 border-foreground bg-card pt-20 transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <div className="flex h-full flex-col px-4 py-6">
-          <div className="mb-8 border-3 border-foreground bg-secondary p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-            <p className="text-sm font-medium text-foreground">Whistleblower</p>
-            <p className="text-lg font-bold text-foreground">
-              {mockData.name}
-            </p>
+      <DashboardSidebar
+        role="whistleblower"
+        userInfo={{
+          name: user?.name ?? "Whistleblower",
+          roleLabel: "",
+          extra: (
             <div className="mt-2 flex items-center gap-1">
               <Star className="h-4 w-4 fill-accent text-accent" />
-              <span className="text-sm font-bold">
-                {dashboardData.rating}
-              </span>
+              <span className="text-sm font-bold">{dashboardData.rating}</span>
               <span className="text-xs text-muted-foreground">
                 ({dashboardData.reviews} reviews)
               </span>
             </div>
-          </div>
-
-          <nav className="flex-1 space-y-2">
-            <Link
-              href="/whistleblower/dashboard"
-              className="flex items-center gap-3 border-3 border-foreground bg-primary p-3 font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <Home className="h-5 w-5" />
-              Dashboard
-            </Link>
-            <Link
-              href="/whistleblower/report"
-              className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <Plus className="h-5 w-5" />
-              Report Apartment
-            </Link>
-            <Link
-              href="/whistleblower/earnings"
-              className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <DollarSign className="h-5 w-5" />
-              Earnings
-            </Link>
-          </nav>
-        </div>
-      </aside>
+          ),
+        }}
+      />
 
       {/* Main Content */}
       <main className="min-h-screen pt-20 lg:ml-64">

@@ -3,10 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
-  Home,
   DollarSign,
-  Menu,
-  X,
   Building2,
   CheckCircle,
   Clock,
@@ -18,12 +15,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { getInspectorJobs, type InspectorJob } from "@/lib/inspectorApi";
 import { useFeatureFlag } from "@/lib/featureFlags";
 
 export default function EarningsPage() {
   const isEnabled = useFeatureFlag("INSPECTOR_DASHBOARD_ENABLED");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<InspectorJob[]>([]);
@@ -93,63 +90,10 @@ export default function EarningsPage() {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center border-3 border-foreground bg-primary shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] lg:hidden"
-      >
-        {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close sidebar"
-          className="fixed inset-0 z-40 bg-foreground/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed left-0 top-0 z-40 h-screen w-64 border-r-3 border-foreground bg-card pt-20 transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <div className="flex h-full flex-col px-4 py-6">
-          <div className="mb-8 border-3 border-foreground bg-accent p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-            <p className="text-sm font-medium text-foreground">Logged in as</p>
-            <p className="text-lg font-bold text-foreground">Inspector Chidi</p>
-            <p className="text-sm text-muted-foreground">Property Inspector</p>
-          </div>
-
-          <nav className="flex-1 space-y-2">
-            <Link
-              href="/dashboard/inspector"
-              className="flex items-center gap-3 rounded-lg border-2 border-transparent px-4 py-3 text-muted-foreground transition-colors hover:border-foreground hover:bg-muted"
-            >
-              <Building2 className="h-5 w-5" />
-              Job Board
-            </Link>
-            <Link
-              href="/dashboard/inspector/earnings"
-              className="flex items-center gap-3 rounded-lg border-2 border-foreground bg-primary px-4 py-3 font-bold text-foreground shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
-            >
-              <DollarSign className="h-5 w-5" />
-              Earnings
-            </Link>
-          </nav>
-
-          <div className="mt-auto pt-6">
-            <Link
-              href="/"
-              className="flex items-center gap-3 rounded-lg border-2 border-transparent px-4 py-3 text-muted-foreground transition-colors hover:border-foreground hover:bg-muted"
-            >
-              <Home className="h-5 w-5" />
-              Back to Home
-            </Link>
-          </div>
-        </div>
-      </aside>
+      <DashboardSidebar
+        role="inspector"
+        userInfo={{ name: "Inspector Chidi", roleLabel: "Property Inspector" }}
+      />
 
       {/* Main Content */}
       <main className="lg:pl-64">
