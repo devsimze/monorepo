@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -44,9 +44,17 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
   tenant: [
     { href: "/dashboard/tenant", label: "Dashboard", icon: Home },
     { href: "/dashboard/tenant/payments", label: "Payments", icon: CreditCard },
-    { href: "/dashboard/tenant/credit-score", label: "Credit Score", icon: Gauge },
+    {
+      href: "/dashboard/tenant/credit-score",
+      label: "Credit Score",
+      icon: Gauge,
+    },
     { href: "/dashboard/tenant/lease", label: "My Lease", icon: FileText },
-    { href: "/dashboard/tenant/vault", label: "Document Vault", icon: ShieldCheck },
+    {
+      href: "/dashboard/tenant/vault",
+      label: "Document Vault",
+      icon: ShieldCheck,
+    },
     { href: "/properties", label: "Browse Properties", icon: Building2 },
     {
       href: "/dashboard/tenant/rate-whistleblower",
@@ -67,9 +75,17 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
   ],
   landlord: [
     { href: "/dashboard/landlord", label: "Dashboard", icon: Home },
-    { href: "/dashboard/landlord/properties", label: "My Properties", icon: Building2 },
+    {
+      href: "/dashboard/landlord/properties",
+      label: "My Properties",
+      icon: Building2,
+    },
     { href: "/dashboard/landlord/tenants", label: "My Tenants", icon: Users },
-    { href: "/dashboard/landlord/payouts", label: "Payout Schedule", icon: DollarSign },
+    {
+      href: "/dashboard/landlord/payouts",
+      label: "Payout Schedule",
+      icon: DollarSign,
+    },
     {
       href: "/messages",
       label: "Messages",
@@ -84,7 +100,11 @@ const NAV_ITEMS: Record<Role, NavItem[]> = {
   ],
   inspector: [
     { href: "/dashboard/inspector", label: "Job Board", icon: Building2 },
-    { href: "/dashboard/inspector/earnings", label: "Earnings", icon: DollarSign },
+    {
+      href: "/dashboard/inspector/earnings",
+      label: "Earnings",
+      icon: DollarSign,
+    },
     { href: "/", label: "Back to Home", icon: Home, footer: true },
   ],
   whistleblower: [
@@ -120,6 +140,8 @@ function isNavItemActive(href: string, pathname: string): boolean {
 
 export function DashboardSidebar({ role, userInfo }: DashboardSidebarProps) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
   const { cardBg, cardLabel } = ROLE_CONFIG[role];
   const isInspector = role === "inspector";
@@ -127,24 +149,69 @@ export function DashboardSidebar({ role, userInfo }: DashboardSidebarProps) {
   const mainItems = NAV_ITEMS[role].filter((item) => !item.footer);
   const footerItems = NAV_ITEMS[role].filter((item) => item.footer);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const sidebar = sidebarRef.current;
+    const focusable = sidebar?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable?.[0];
+    const last = focusable?.[focusable.length - 1];
+    first?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== "Tab" || !first || !last) return;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  function closeSidebar() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
   function navLinkClass(href: string): string {
     const active = isNavItemActive(href, pathname);
     if (isInspector) {
       return active
-        ? "flex items-center gap-3 rounded-lg border-2 border-foreground bg-primary px-4 py-3 font-bold text-foreground shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
-        : "flex items-center gap-3 rounded-lg border-2 border-transparent px-4 py-3 text-muted-foreground transition-colors hover:border-foreground hover:bg-muted";
+        ? "flex items-center gap-3 rounded-lg border-2 border-foreground bg-primary px-4 py-3 font-bold text-foreground shadow-[2px_2px_0px_0px_rgba(26,26,26,1)] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        : "flex items-center gap-3 rounded-lg border-2 border-transparent px-4 py-3 text-muted-foreground outline-none transition-colors hover:border-foreground hover:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
     }
     return active
-      ? "flex items-center gap-3 border-3 border-foreground bg-primary p-3 font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
-      : "flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]";
+      ? "flex items-center gap-3 border-3 border-foreground bg-primary p-3 font-bold outline-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      : "flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold outline-none transition-all hover:bg-muted hover:shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
   }
 
   return (
     <>
       {/* Mobile toggle button */}
       <button
+        ref={triggerRef}
+        type="button"
+        aria-label={
+          open ? "Close dashboard navigation" : "Open dashboard navigation"
+        }
+        aria-expanded={open}
+        aria-controls="dashboard-sidebar"
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center border-3 border-foreground bg-primary shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] lg:hidden"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center border-3 border-foreground bg-primary outline-none shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:hidden"
       >
         {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
@@ -155,12 +222,15 @@ export function DashboardSidebar({ role, userInfo }: DashboardSidebarProps) {
           type="button"
           aria-label="Close sidebar"
           className="fixed inset-0 z-40 bg-foreground/50 lg:hidden"
-          onClick={() => setOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar */}
       <aside
+        id="dashboard-sidebar"
+        ref={sidebarRef}
+        aria-label={`${userInfo.roleLabel} dashboard navigation`}
         className={`fixed left-0 top-0 z-40 h-screen w-64 border-r-3 border-foreground bg-card pt-20 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex h-full flex-col px-4 py-6">
@@ -171,7 +241,9 @@ export function DashboardSidebar({ role, userInfo }: DashboardSidebarProps) {
             <p className="text-sm font-medium text-foreground">{cardLabel}</p>
             <p className="text-lg font-bold text-foreground">{userInfo.name}</p>
             {userInfo.extra ?? (
-              <p className="text-sm text-muted-foreground">{userInfo.roleLabel}</p>
+              <p className="text-sm text-muted-foreground">
+                {userInfo.roleLabel}
+              </p>
             )}
           </div>
 
@@ -184,7 +256,10 @@ export function DashboardSidebar({ role, userInfo }: DashboardSidebarProps) {
                   key={item.href}
                   href={item.href}
                   className={navLinkClass(item.href)}
-                  onClick={() => setOpen(false)}
+                  aria-current={
+                    isNavItemActive(item.href, pathname) ? "page" : undefined
+                  }
+                  onClick={closeSidebar}
                 >
                   <Icon className="h-5 w-5" />
                   {item.label}
@@ -204,7 +279,10 @@ export function DashboardSidebar({ role, userInfo }: DashboardSidebarProps) {
                     key={item.href}
                     href={item.href}
                     className={navLinkClass(item.href)}
-                    onClick={() => setOpen(false)}
+                    aria-current={
+                      isNavItemActive(item.href, pathname) ? "page" : undefined
+                    }
+                    onClick={closeSidebar}
                   >
                     <Icon className="h-5 w-5" />
                     {item.label}
