@@ -22,6 +22,10 @@ import {
 } from "@/lib/api/whistleblowerDashboard";
 import useAuthStore from "@/store/useAuthStore";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import {
+  DashboardA11yEnhancer,
+  DASHBOARD_MAIN_ID,
+} from "@/components/dashboard/DashboardA11yEnhancer";
 
 export default function WhistleblowerDashboard() {
   const { user } = useAuthStore();
@@ -38,7 +42,9 @@ export default function WhistleblowerDashboard() {
         setError(null);
       } catch (err) {
         console.error("Failed to fetch whistleblower data:", err);
-        setError("Failed to connect to live data. Please ensure the backend is running.");
+        setError(
+          "Failed to connect to live data. Please ensure the backend is running.",
+        );
       } finally {
         setLoading(false);
       }
@@ -65,9 +71,11 @@ export default function WhistleblowerDashboard() {
       <div className="flex h-screen w-full flex-col items-center justify-center bg-background p-4">
         <div className="max-w-md w-full border-3 border-destructive bg-destructive/10 p-8 text-center shadow-[8px_8px_0px_0px_rgba(26,26,26,1)]">
           <AlertCircle className="mx-auto h-16 w-16 text-destructive mb-4" />
-          <h1 className="font-mono text-2xl font-black mb-2 text-destructive">Connection Error</h1>
+          <h1 className="font-mono text-2xl font-black mb-2 text-destructive">
+            Connection Error
+          </h1>
           <p className="text-destructive/80 mb-6">{error}</p>
-          <Button 
+          <Button
             className="w-full border-3 border-foreground bg-primary font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]"
             onClick={() => window.location.reload()}
           >
@@ -82,6 +90,7 @@ export default function WhistleblowerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <DashboardA11yEnhancer />
       <DashboardHeader />
 
       <DashboardSidebar
@@ -102,7 +111,11 @@ export default function WhistleblowerDashboard() {
       />
 
       {/* Main Content */}
-      <main className="min-h-screen pt-20 lg:ml-64">
+      <main
+        id={DASHBOARD_MAIN_ID}
+        tabIndex={-1}
+        className="min-h-screen pt-20 lg:ml-64"
+      >
         <div className="p-4 md:p-6 lg:p-8">
           {/* Header */}
           <div className="mb-8">
@@ -142,7 +155,8 @@ export default function WhistleblowerDashboard() {
                     Reports This Month
                   </p>
                   <p className="truncate text-xl font-bold text-foreground md:text-3xl">
-                    {dashboardData.reportsThisMonth}/{dashboardData.maxReportsPerMonth}
+                    {dashboardData.reportsThisMonth}/
+                    {dashboardData.maxReportsPerMonth}
                   </p>
                 </div>
               </div>
@@ -182,7 +196,8 @@ export default function WhistleblowerDashboard() {
           </div>
 
           {/* Report Limit Warning */}
-          {dashboardData.reportsThisMonth >= dashboardData.maxReportsPerMonth && (
+          {dashboardData.reportsThisMonth >=
+            dashboardData.maxReportsPerMonth && (
             <div className="mb-8 border-3 border-destructive bg-red-100 p-4 rounded-sm">
               <div className="flex gap-2">
                 <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
@@ -191,8 +206,9 @@ export default function WhistleblowerDashboard() {
                     Monthly Limit Reached
                   </p>
                   <p className="text-xs text-destructive/80">
-                    You've reached your {dashboardData.maxReportsPerMonth} apartment limit for this month. Come
-                    back next month to report more.
+                    You've reached your {dashboardData.maxReportsPerMonth}{" "}
+                    apartment limit for this month. Come back next month to
+                    report more.
                   </p>
                 </div>
               </div>
@@ -205,7 +221,8 @@ export default function WhistleblowerDashboard() {
               <h2 className="font-mono text-lg font-bold md:text-xl">
                 Your Active Listings
               </h2>
-              {dashboardData.reportsThisMonth < dashboardData.maxReportsPerMonth && (
+              {dashboardData.reportsThisMonth <
+                dashboardData.maxReportsPerMonth && (
                 <Link href="/whistleblower/report">
                   <Button className="border-3 border-foreground bg-primary font-bold shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]">
                     <Plus className="mr-2 h-4 w-4" />
@@ -219,8 +236,12 @@ export default function WhistleblowerDashboard() {
               {listings.length === 0 ? (
                 <div className="border-3 border-foreground border-dashed p-12 text-center bg-muted/30">
                   <Home className="mx-auto h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-                  <p className="font-mono text-lg font-bold">No active listings</p>
-                  <p className="text-muted-foreground mt-2">Report your first apartment to start earning!</p>
+                  <p className="font-mono text-lg font-bold">
+                    No active listings
+                  </p>
+                  <p className="text-muted-foreground mt-2">
+                    Report your first apartment to start earning!
+                  </p>
                 </div>
               ) : (
                 listings.map((listing) => (
@@ -234,8 +255,8 @@ export default function WhistleblowerDashboard() {
                           {listing.address}
                         </h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          ₦{listing.price.toLocaleString()}/year • {listing.beds}{" "}
-                          bed(s) • {listing.baths} bath(s)
+                          ₦{listing.price.toLocaleString()}/year •{" "}
+                          {listing.beds} bed(s) • {listing.baths} bath(s)
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
                           Posted: {listing.postedDate}
@@ -249,11 +270,16 @@ export default function WhistleblowerDashboard() {
                         </div>
 
                         <div className="flex flex-col items-center gap-1 border-l-2 border-foreground pl-4">
-                          <p className="text-xs text-muted-foreground">Status</p>
+                          <p className="text-xs text-muted-foreground">
+                            Status
+                          </p>
                           <div
                             className={`text-sm font-bold ${listing.status === "rented" ? "text-secondary" : "text-primary"}`}
                           >
-                            {listing.status === "rented" ? "✓ Rented" : listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
+                            {listing.status === "rented"
+                              ? "✓ Rented"
+                              : listing.status.charAt(0).toUpperCase() +
+                                listing.status.slice(1)}
                           </div>
                         </div>
 
@@ -270,8 +296,8 @@ export default function WhistleblowerDashboard() {
                       </div>
                     </div>
                   </Card>
-                )
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -283,7 +309,9 @@ export default function WhistleblowerDashboard() {
             <div className="space-y-3">
               {earnings.length === 0 ? (
                 <div className="border-3 border-foreground border-dashed p-8 text-center bg-muted/30">
-                  <p className="text-muted-foreground italic">No recent earnings records found.</p>
+                  <p className="text-muted-foreground italic">
+                    No recent earnings records found.
+                  </p>
                 </div>
               ) : (
                 earnings.map((earning, idx) => (
@@ -317,8 +345,8 @@ export default function WhistleblowerDashboard() {
                       </div>
                     </div>
                   </Card>
-                )
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
