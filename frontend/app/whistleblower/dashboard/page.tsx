@@ -22,9 +22,10 @@ import {
   getWhistleblowerDashboardData,
   type WhistleblowerDashboardData,
 } from "@/lib/api/whistleblowerDashboard";
-import { whistleblowerData as mockData } from "@/lib/mockData";
+import useAuthStore from "@/store/useAuthStore";
 
 export default function WhistleblowerDashboard() {
+  const { user } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,6 @@ export default function WhistleblowerDashboard() {
       } catch (err) {
         console.error("Failed to fetch whistleblower data:", err);
         setError("Failed to connect to live data. Please ensure the backend is running.");
-        // Fallback to mock data in development if needed, but the requirement is "live"
       } finally {
         setLoading(false);
       }
@@ -112,7 +112,7 @@ export default function WhistleblowerDashboard() {
           <div className="mb-8 border-3 border-foreground bg-secondary p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
             <p className="text-sm font-medium text-foreground">Whistleblower</p>
             <p className="text-lg font-bold text-foreground">
-              {mockData.name}
+              {user?.name ?? "Whistleblower"}
             </p>
             <div className="mt-2 flex items-center gap-1">
               <Star className="h-4 w-4 fill-accent text-accent" />
