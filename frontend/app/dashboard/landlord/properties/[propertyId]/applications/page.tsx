@@ -24,6 +24,7 @@ import {
   reviewPropertyApplication,
 } from "@/lib/landlordPropertiesApi";
 import { showSuccessToast, showErrorToast } from "@/lib/toast";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 
 export default function PropertyApplicationsPage() {
   const params = useParams();
@@ -104,33 +105,12 @@ export default function PropertyApplicationsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r-3 border-foreground bg-card pt-20">
-        <div className="flex h-full flex-col px-4 py-6">
-          <div className="mb-8 border-3 border-foreground bg-accent p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-            <p className="text-sm font-medium text-foreground">Logged in as</p>
-            <p className="text-lg font-bold text-foreground">Chief Okonkwo</p>
-            <p className="text-sm text-muted-foreground">Landlord</p>
-          </div>
-          <nav className="flex-1 space-y-2">
-            <Link
-              href="/dashboard/landlord"
-              className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted"
-            >
-              <Building2 className="h-5 w-5" />
-              Dashboard
-            </Link>
-            <Link
-              href="/dashboard/landlord/properties"
-              className="flex items-center gap-3 border-3 border-foreground bg-card p-3 font-bold transition-all hover:bg-muted"
-            >
-              <Building2 className="h-5 w-5" />
-              My Properties
-            </Link>
-          </nav>
-        </div>
-      </aside>
+      <DashboardSidebar
+        role="landlord"
+        userInfo={{ name: "Chief Okonkwo", roleLabel: "Landlord" }}
+      />
 
-      <main className="ml-64 min-h-screen pt-20">
+      <main className="lg:ml-64 min-h-screen pt-20">
         <div className="p-8">
           <div className="mb-8">
             <Link
