@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { LandlordVerificationBadge } from "@/components/LandlordVerificationBadge";
 import { setListingSaved } from "@/lib/savedPropertiesApi";
 import { showErrorToast } from "@/lib/toast";
+import { formatNgn } from "@/lib/currency";
 
 export type PropertyCardPaymentType = "outright" | "installment";
 
@@ -67,14 +68,6 @@ export interface PropertyCardProps {
 }
 
 const DEFAULT_PLAN_MONTHS = 12;
-
-function formatNgn(amount: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
 
 function formatLocation(property: PropertyCardData) {
   const parts = [property.area, property.city].filter(Boolean);

@@ -1,7 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { formatNgn } from "@/lib/currency";
 import { AlertCircle, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { useLocale } from "next-intl";
 
 export interface ScheduleRow {
   period: number;
@@ -39,6 +41,8 @@ export function UpcomingScheduleTable({
   onPayNow,
   optimisticStatuses = {},
 }: UpcomingScheduleTableProps) {
+  const locale = useLocale();
+
   return (
     <div className="overflow-hidden rounded-3xl border-2 border-foreground/20 bg-card shadow-[4px_4px_0_rgba(26,26,26,0.05)]">
       <table
@@ -60,6 +64,8 @@ export function UpcomingScheduleTable({
             const effectiveStatus = optimistic ?? row.status;
             const isProcessing = optimistic === "pending";
             const isFailed = optimistic === "failed";
+            const formattedAmount = formatNgn(row.amount, locale);
+
             return (
               <tr
                 key={`${row.period}-${row.month}`}
@@ -73,7 +79,7 @@ export function UpcomingScheduleTable({
                 </td>
                 <td className="px-6 py-4">{row.dueDate}</td>
                 <td className="px-6 py-4 font-mono font-bold">
-                  ₦{row.amount.toLocaleString("en-NG")}
+                  {formattedAmount}
                 </td>
                 <td className="px-6 py-4">
                   <span
@@ -98,7 +104,7 @@ export function UpcomingScheduleTable({
                   {row.isNextDue && !optimistic ? (
                     <Button
                       onClick={onPayNow}
-                      aria-label={`Pay installment ${row.period} — ₦${row.amount.toLocaleString("en-NG")}`}
+                      aria-label={`Pay installment ${row.period} - ${formattedAmount}`}
                       className="border-2 border-foreground bg-primary font-bold shadow-[4px_4px_0_rgba(26,26,26,1)]"
                     >
                       Pay Now
