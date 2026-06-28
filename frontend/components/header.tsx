@@ -9,6 +9,7 @@ import { MobileMenu } from "@/components/ui/mobile-menu"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CurrencyToggle } from "@/components/currency-toggle"
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { NotificationBell } from "@/components/layout/NotificationBell"
 
 const navLinks = [
@@ -56,6 +57,7 @@ export function Header() {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center gap-3">
+            <LanguageSwitcher />
             <CurrencyToggle />
             <ThemeToggle />
             <NotificationBell />
