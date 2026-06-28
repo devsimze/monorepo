@@ -23,6 +23,7 @@ import { showErrorToast, showSuccessToast } from "@/lib/toast"
 import { usePaymentHistory } from "@/hooks/usePaymentHistory"
 import { PaymentTimeline } from "@/components/payment/PaymentTimeline"
 import { UpcomingScheduleTable } from "@/components/payment/UpcomingScheduleTable"
+import { formatNgn } from "@/lib/currency"
 
 type ActiveTab = "schedule" | "history"
 
@@ -47,13 +48,6 @@ export default function TenantPaymentsPage() {
     dealId: selectedDeal,
     limit: 10,
   })
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount)
 
   const loadData = async () => {
     setIsLoading(true)
@@ -189,7 +183,7 @@ export default function TenantPaymentsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Wallet Balance</p>
-                  <p className="text-xl font-bold">{formatCurrency(walletBalance)}</p>
+                  <p className="text-xl font-bold">{formatNgn(walletBalance)}</p>
                 </div>
               </div>
             </Card>
@@ -204,7 +198,7 @@ export default function TenantPaymentsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Next Payment</p>
                   <p className="text-xl font-bold">
-                    {nextPayment ? formatCurrency(nextPayment.amount) : "N/A"}
+                    {nextPayment ? formatNgn(nextPayment.amount) : "N/A"}
                   </p>
                 </div>
               </div>
@@ -299,7 +293,7 @@ export default function TenantPaymentsPage() {
                 {nextPayment ? (
                   <div className="rounded-3xl border-2 border-foreground/20 bg-muted p-4">
                     <p className="text-sm text-muted-foreground">Next due installment</p>
-                    <p className="text-2xl font-bold">{formatCurrency(nextPayment.amount)}</p>
+                    <p className="text-2xl font-bold">{formatNgn(nextPayment.amount)}</p>
                     <p className="text-sm text-muted-foreground">Due {nextPayment.dueDate}</p>
                   </div>
                 ) : null}

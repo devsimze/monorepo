@@ -2,6 +2,7 @@
 
 import { ArrowRight, Download, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatNgn } from "@/lib/currency";
 
 export interface PaymentTimelineNodeProps {
   date: string;
@@ -38,7 +39,7 @@ export function PaymentTimelineNode({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">{date}</p>
-            <p className="mt-1 text-xl font-bold">₦{amount.toLocaleString("en-NG")}</p>
+            <p className="mt-1 text-xl font-bold">{formatNgn(amount)}</p>
           </div>
           <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusStyles[status]}`}>
             {status}

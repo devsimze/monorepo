@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react"
 import { describe, it, expect, vi } from "vitest"
 import { UpcomingScheduleTable } from "./UpcomingScheduleTable"
 
+vi.mock("next-intl", () => ({
+  useLocale: () => "en-NG",
+}))
+
 const mockSchedule = [
   {
     period: 1,
