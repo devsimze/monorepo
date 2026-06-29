@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs"
+import { scrubEvent, scrubBreadcrumb } from "./lib/pii-scrubber"
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -25,29 +26,9 @@ Sentry.init({
     }
     
     // Scrub PII from event data
-    if (event.request) {
-      delete event.request.cookies
-      if (event.request.headers) {
-        delete event.request.headers["authorization"]
-        delete event.request.headers["cookie"]
-      }
-    }
-    
-    // Scrub PII from user data
-    if (event.user) {
-      delete event.user.email
-      delete event.user.phone
-      delete event.user.ip_address
-    }
-    
-    // Scrub PII from extra data
-    if (event.extra) {
-      const extra = event.extra
-      delete extra.email
-      delete extra.phone
-      delete extra.password
-    }
-    
-    return event
+    return scrubEvent(event)
+  },
+  beforeBreadcrumb(breadcrumb) {
+    return scrubBreadcrumb(breadcrumb)
   },
 })
