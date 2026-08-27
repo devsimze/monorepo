@@ -8,7 +8,9 @@ export default defineConfig({
     include: [
       'app/**/*.{test,spec}.{ts,tsx}',
       'components/**/*.{test,spec}.{ts,tsx}',
+      'hooks/**/*.{test,spec}.{ts,tsx}',
       'lib/**/*.{test,spec}.{ts,tsx}',
+      'store/**/*.{test,spec}.{ts,tsx}',
     ],
     exclude: ['e2e/**', 'node_modules/**'],
     environment: 'jsdom',

@@ -157,6 +157,7 @@ import { createKycRouter } from "./routes/kyc.js";
 import { createAdminRolesRouter } from "./routes/adminRoles.js";
 import { createAbuseRouter } from "./routes/abuse.js";
 import { createInspectorJobsRouter, createAdminInspectorJobsRouter } from "./routes/inspectorJobs.js";
+import { createPropertyInspectionsRouter } from "./routes/propertyInspections.js";
 import { createRentGuaranteeRouter } from "./routes/rentGuarantee.js";
 import { createTenantRatingCardRouter } from "./routes/tenantRatingCard.js";
 import { createRentGuaranteeProviderFromEnv } from "./services/insurance/rentGuaranteeProviderFactory.js";
@@ -170,6 +171,12 @@ import { initializeCacheInvalidationWebhooks } from "./services/cacheInvalidatio
 import { createKycWebhookRouter } from "./routes/kyc.js";
 import { createOnboardingRouter } from "./routes/onboarding.js";
 import { createEmployersRouter } from "./routes/employers.js";
+import { createMessagingRouter } from "./routes/messaging.js";
+import {
+  flushQueuedMessageNotificationDigest,
+  sendQueuedMessageNotificationEmail,
+} from "./services/messageNotificationService.js";
+import { createAttachmentsRouter } from "./routes/attachments.js";
 import { MonthlyDeductionReminderJob } from "./jobs/monthlyDeductionReminderJob.js";
 import { dataRetentionPurgeJobHandler, DATA_RETENTION_PURGE_JOB_NAME } from "./jobs/dataRetentionPurgeJob.js";
 
@@ -413,6 +420,16 @@ export function createApp() {
   jobScheduler.registerHandler('notification.send', async (job) => {
     await notificationService.send(job.payload as any)
   })
+  jobScheduler.registerHandler('messaging.notification.digest', async (job) => {
+    await flushQueuedMessageNotificationDigest(
+      (job.payload as { key: string }).key,
+    )
+  })
+  jobScheduler.registerHandler('messaging.notification.email', async (job) => {
+    await sendQueuedMessageNotificationEmail(
+      (job.payload as { key: string }).key,
+    )
+  })
 
   // Register webhook delivery job handler
   jobScheduler.registerHandler('webhook.delivery', async (job) => {
@@ -563,6 +580,18 @@ export function createApp() {
   // Core middleware
   app.use(requestIdMiddleware);
   app.use(traceResponseMiddleware);
+
+  // Attach requestId to Sentry scope for error correlation
+  if (env.NODE_ENV !== "test" && process.env.SENTRY_DSN_BACKEND) {
+    app.use((req: import('express').Request, _res: import('express').Response, next: import('express').NextFunction) => {
+      Sentry.withScope((scope) => {
+        scope.setTag("requestId", req.requestId || "unknown");
+        scope.setExtra("method", req.method);
+        scope.setExtra("path", req.originalUrl);
+      });
+      next();
+    });
+  }
 
   // Sentry request handler (must be before routes)
   if (env.NODE_ENV !== "test" && process.env.SENTRY_DSN_BACKEND) {
@@ -891,6 +920,9 @@ export function createApp() {
   app.use('/api/v1/inspector', authenticateToken, requireFlag('INSPECTOR_DASHBOARD_ENABLED'), createInspectorJobsRouter(sorobanAdapter))
   app.use('/api/v1/admin/inspector', authenticateToken, requireFlag('INSPECTOR_DASHBOARD_ENABLED'), createAdminInspectorJobsRouter())
 
+  // Property inspection routes
+  app.use('/api/v1', createPropertyInspectionsRouter())
+
   // Rent guarantee insurance routes
   const rentGuaranteeProvider = createRentGuaranteeProviderFromEnv(process.env.RENT_GUARANTEE_PROVIDER)
   app.use('/api/v1', createRentGuaranteeRouter(rentGuaranteeProvider))
@@ -899,6 +931,8 @@ export function createApp() {
   app.use('/api/v1', createTenantRatingCardRouter(sorobanAdapter))
 
   // Interactive API documentation
+  app.use("/api/v1/messaging", createMessagingRouter());
+  app.use("/api/v1/messaging/attachments", createAttachmentsRouter());
   app.use("/docs", createDocsRouter());
 
   // Backward compatibility redirect from /api/* to /api/v1/*

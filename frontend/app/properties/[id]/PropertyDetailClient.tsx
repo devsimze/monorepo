@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { allProperties } from "@/lib/mockData/properties";
+import { getProperty, type PropertyListing } from "@/lib/propertiesApi";
 import { AmenitiesLegend } from "@/components/properties/AmenitiesLegend";
 import { showSuccessToast, showErrorToast } from "@/lib/toast";
 import { apiPost } from "@/lib/api";
@@ -64,8 +64,8 @@ import { TrustIndicatorBar } from "@/components/properties/TrustIndicatorBar";
 import { InspectionReportAccordion } from "@/components/properties/InspectionReportAccordion";
 import { LandlordSnippet } from "@/components/properties/LandlordSnippet";
 import useAuthStore from "@/store/useAuthStore";
-
-const properties = allProperties;
+import { propertyInspectionApi, type InspectionSummary } from "@/lib/propertyInspectionApi";
+import { SectionBoundary } from "@/components/section-boundary";
 
 const featureIcons: { [key: string]: React.ElementType } = {
   "24/7 Power Supply": Wind,
@@ -117,8 +117,99 @@ export default function PropertyDetailClient({
   const [reportDetails, setReportDetails] = useState("");
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [inspectionSummary, setInspectionSummary] = useState<InspectionSummary | null>(null);
+  const [isLoadingInspection, setIsLoadingInspection] = useState(false);
+  const [listing, setListing] = useState<PropertyListing | null>(null);
+  const [isLoadingProperty, setIsLoadingProperty] = useState(true);
+  const [propertyError, setPropertyError] = useState<string | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const mainGalleryRef = useRef<HTMLDivElement>(null);
+
+  // Focus lightbox when opened
+  useEffect(() => {
+    if (showLightbox && lightboxRef.current) {
+      lightboxRef.current.focus();
+    }
+  }, [showLightbox]);
+
+  // Fetch property from API
+  useEffect(() => {
+    const fetchProperty = async () => {
+      setIsLoadingProperty(true);
+      setPropertyError(null);
+      try {
+        const result = await getProperty(propertyId);
+        setListing(result.data);
+      } catch (err: any) {
+        setPropertyError(err?.message || "Failed to load property");
+      } finally {
+        setIsLoadingProperty(false);
+      }
+    };
+    fetchProperty();
+  }, [propertyId]);
+
+  // Fetch inspection summary
+  useEffect(() => {
+    const fetchInspectionSummary = async () => {
+      setIsLoadingInspection(true);
+      try {
+        const summary = await propertyInspectionApi.getInspectionSummary(propertyId);
+        setInspectionSummary(summary);
+      } catch (error) {
+        // Property may not have an inspection, which is fine
+        setInspectionSummary(null);
+      } finally {
+        setIsLoadingInspection(false);
+      }
+    };
+
+    fetchInspectionSummary();
+  }, [propertyId]);
+
+  // Map API listing to the format the component expects
+  const property = listing ? {
+    id: Number.parseInt(listing.listingId) || 0,
+    title: listing.address,
+    location: [listing.city, listing.area].filter(Boolean).join(", "),
+    address: listing.address,
+    price: listing.annualRentNgn,
+    outrightPriceNgn: listing.outrightPriceNgn,
+    installmentBasePriceNgn: listing.installmentBasePriceNgn,
+    beds: listing.bedrooms,
+    baths: listing.bathrooms,
+    sqm: 0,
+    image: listing.photos?.[0] || "/placeholder.svg",
+    verificationStatus: listing.status === "approved" ? "VERIFIED" : listing.status.toUpperCase(),
+    tag: null,
+    tagColor: null,
+    description: listing.description || "",
+    features: [],
+    images: (listing.photos || []).map((url, idx) => ({
+      id: idx + 1,
+      label: `Photo ${idx + 1}`,
+      url,
+    })),
+    landlord: {
+      name: "Property Owner",
+      verified: false,
+      listings: 1,
+      responseTime: "Within 24 hours",
+    },
+    whistleblower: null,
+  } : null;
+
+  const nextImage = useCallback(() => {
+    if (!property) return;
+    setActiveImageIndex((prev) => (prev + 1) % property.images.length);
+  }, [property]);
+
+  const prevImage = useCallback(() => {
+    if (!property) return;
+    setActiveImageIndex(
+      (prev) => (prev - 1 + property.images.length) % property.images.length,
+    );
+  }, [property]);
 
   // Handle keyboard navigation for lightbox
   useEffect(() => {
@@ -143,7 +234,7 @@ export default function PropertyDetailClient({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showLightbox, activeImageIndex]);
+  }, [showLightbox, nextImage, prevImage]);
 
   // Handle keyboard navigation for main gallery
   useEffect(() => {
@@ -164,18 +255,20 @@ export default function PropertyDetailClient({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showLightbox, activeImageIndex]);
+  }, [showLightbox, nextImage, prevImage]);
 
-  // Focus lightbox when opened
-  useEffect(() => {
-    if (showLightbox && lightboxRef.current) {
-      lightboxRef.current.focus();
-    }
-  }, [showLightbox]);
+  if (isLoadingProperty) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground font-mono">Loading property...</p>
+        </div>
+      </main>
+    );
+  }
 
-  const property = properties.find((p) => p.id === Number.parseInt(propertyId));
-
-  if (!property) {
+  if (propertyError || !property) {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center">
         <div className="border-3 border-foreground bg-card p-12 text-center shadow-[6px_6px_0px_0px_rgba(26,26,26,1)]">
@@ -212,16 +305,6 @@ export default function PropertyDetailClient({
   const monthlyPayment = Math.round(
     (amountToFinance + inspectionFee) / paymentMonths,
   );
-
-  const nextImage = () => {
-    setActiveImageIndex((prev) => (prev + 1) % property.images.length);
-  };
-
-  const prevImage = () => {
-    setActiveImageIndex(
-      (prev) => (prev - 1 + property.images.length) % property.images.length,
-    );
-  };
 
   const handleReportSubmit = async () => {
     if (!reportCategory || !reportDetails.trim()) return;
@@ -484,19 +567,17 @@ export default function PropertyDetailClient({
               </div>
 
               {/* Trust Indicators Bar */}
-              <TrustIndicatorBar
-                landlordKyc={property.landlord?.verified ?? false}
-                inspectionPass={
-                  (property as any).inspectionReport
-                    ? {
-                        date: (property as any).inspectionReport.date,
-                        inspectorName: (property as any).inspectionReport.inspectorName,
-                      }
-                    : null
-                }
-                whistleblowerCleared={!!property.whistleblower}
-                verificationStatus={(property as any).verificationStatus}
-              />
+              <SectionBoundary section="property-trust-bar" userRole="guest">
+                <TrustIndicatorBar
+                  landlordKyc={property.landlord?.verified ?? false}
+                  inspectionPass={inspectionSummary ? {
+                    date: inspectionSummary.approvedAt,
+                    inspectorName: `Inspector #${inspectionSummary.inspectionId.slice(0, 8)}`,
+                  } : null}
+                  whistleblowerCleared={!!property.whistleblower}
+                  verificationStatus={(property as any).verificationStatus}
+                />
+              </SectionBoundary>
 
               {/* Description */}
               <div className="border-3 border-foreground bg-card p-4 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)] sm:p-6">
@@ -540,13 +621,15 @@ export default function PropertyDetailClient({
               <AmenitiesLegend />
 
               {/* Inspection Report Accordion */}
-              <InspectionReportAccordion 
-                report={(property as any).inspectionReport ? {
-                  overallGrade: (property as any).inspectionReport.overallGrade,
-                  roomConditions: (property as any).inspectionReport.roomConditions,
-                  photos: (property as any).inspectionReport.photos || (property.images.length > 2 ? [property.images[0].url, property.images[1].url].filter(Boolean) as string[] : [])
-                } : null}
-              />
+              <SectionBoundary section="property-inspection-report" userRole="guest">
+                <InspectionReportAccordion 
+                  report={inspectionSummary ? {
+                    overallGrade: inspectionSummary.passCount > inspectionSummary.failCount ? 'A' : inspectionSummary.passCount === inspectionSummary.failCount ? 'B' : 'C',
+                    roomConditions: inspectionSummary.categoryResults,
+                    photos: property.images.slice(0, 3).map(img => img.url).filter(Boolean) as string[]
+                  } : null}
+                />
+              </SectionBoundary>
 
               {/* Room Gallery */}
               <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
@@ -591,24 +674,27 @@ export default function PropertyDetailClient({
               </div>
 
               {/* Reviews Section */}
-              <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                <h2 className="font-mono text-xl font-bold mb-6">
-                  User Feedback & Reviews
-                </h2>
-                <Suspense fallback={
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                    <p className="text-muted-foreground font-mono">Loading reviews...</p>
-                  </div>
-                }>
-                  <ApartmentReviews key={propertyId} propertyId={propertyId} />
-                </Suspense>
-              </div>
+              <SectionBoundary section="property-reviews" userRole="guest">
+                <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+                  <h2 className="font-mono text-xl font-bold mb-6">
+                    User Feedback & Reviews
+                  </h2>
+                  <Suspense fallback={
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                      <p className="text-muted-foreground font-mono">Loading reviews...</p>
+                    </div>
+                  }>
+                    <ApartmentReviews key={propertyId} propertyId={propertyId} />
+                  </Suspense>
+                </div>
+              </SectionBoundary>
             </div>
 
             {/* Sidebar - Pricing & CTA */}
             <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-6">
+              <SectionBoundary section="property-sidebar" userRole={isAuthenticated ? "tenant" : "guest"}>
+                <div className="sticky top-24 space-y-6">
                 {/* Pricing Card */}
                 <div className="border-3 border-foreground bg-card p-4 shadow-[6px_6px_0px_0px_rgba(26,26,26,1)] sm:p-6">
                   {(property as any).outrightPriceNgn && (property as any).installmentBasePriceNgn ? (
@@ -809,26 +895,27 @@ export default function PropertyDetailClient({
                   }}
                 />
 
-                {/* Report Listing Card */}
-                <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Flag className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-mono font-bold">Report an Issue</h3>
+                  {/* Report Listing Card */}
+                  <div className="border-3 border-foreground bg-card p-6 shadow-[4px_4px_0px_0px_rgba(26,26,26,1)]">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Flag className="h-5 w-5 text-muted-foreground" />
+                      <h3 className="font-mono font-bold">Report an Issue</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      See something suspicious or incorrect about this listing?
+                      Let us know.
+                    </p>
+                    <Button
+                      onClick={() => setShowReportDialog(true)}
+                      variant="outline"
+                      className="w-full border-3 border-foreground bg-transparent py-5 font-bold shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
+                    >
+                      <Flag className="mr-2 h-4 w-4" />
+                      Report Listing
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    See something suspicious or incorrect about this listing?
-                    Let us know.
-                  </p>
-                  <Button
-                    onClick={() => setShowReportDialog(true)}
-                    variant="outline"
-                    className="w-full border-3 border-foreground bg-transparent py-5 font-bold shadow-[3px_3px_0px_0px_rgba(26,26,26,1)] transition-all hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0px_0px_rgba(26,26,26,1)]"
-                  >
-                    <Flag className="mr-2 h-4 w-4" />
-                    Report Listing
-                  </Button>
                 </div>
-              </div>
+              </SectionBoundary>
             </div>
           </div>
         </div>
